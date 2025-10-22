@@ -176,40 +176,35 @@ Return ONLY valid JSON, no additional text.
     console.log('Step 2: Decomposing story into tasks\n');
 
     const decomposePrompt = `
-Decompose the following Jira story into smaller, actionable subtasks:
+Decompose the following Jira story into smaller, actionable subtasks.
 
 Story: ${storyData.summary}
-URL: ${jiraStory.url}
 
 Description:
 ${storyData.description}
 
-Ensure that the tasks are not too small (you can group similar tasks) and not too big (doable within 1-2 days).
+Requirements:
+- Tasks should be focused on a single responsibility
+- Completable within 1-2 days
+- Not too granular (group similar small tasks together)
+- Not too large (break down complex work)
 
-Please provide subtasks in the following JSON format:
+Return your response ONLY as valid JSON in this exact format (no markdown, no code blocks, no additional text):
 
 {
   "subtasks": [
     {
       "summary": "Brief, actionable task title",
-      "description": "Optional detailed description if needed (can be empty string)"
+      "description": "Optional detailed description"
     }
   ]
 }
-
-Create subtasks that are:
-- Focused on a single responsibility
-- Completable within 1-2 days
-- Clear and actionable
-- Not too granular (group similar small tasks together)
-
-Return ONLY valid JSON, no additional text.
     `.trim();
 
     const decomposeResult = await runClaude(decomposePrompt, {
-      maxTurns: 300,
+      maxTurns: 50,
       skipPermissions: true,
-      planMode: true,
+      planMode: false,
     }, config.claudeCliPath);
 
     if (decomposeResult.exitCode !== 0) {

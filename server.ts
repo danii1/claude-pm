@@ -58,9 +58,15 @@ async function processJob(
   promptStyle: "technical" | "pm" = "technical",
   skipDecomposition = false
 ) {
+  console.log(`[processJob] Starting job for session ${sessionId}`);
+  console.log(`[processJob] Figma URL: ${figmaUrl}`);
+  console.log(`[processJob] Epic: ${epicKey || 'none'}`);
+
   try {
     sendSSE(sessionId, { type: "log", message: "Loading configuration..." });
+    console.log(`[processJob] Loading configuration...`);
     const config = await loadConfig();
+    console.log(`[processJob] Configuration loaded successfully`);
     const jiraClient = new JiraClient(config.jira);
 
     sendSSE(sessionId, {
@@ -633,7 +639,7 @@ process.on("uncaughtException", (error: any) => {
 // Start server
 const server = Bun.serve({
   port: process.env.PORT || 3000,
-  idleTimeout: 255, // max timeout for long-running Claude operations
+  idleTimeout: 255, // Maximum allowed by Bun (~4 minutes) for long-running Claude operations
   error(error) {
     // Suppress AbortError from SSE connections being closed
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -654,7 +660,9 @@ const server = Bun.serve({
 
     // Handle form submission
     if (url.pathname === "/api/process" && req.method === "POST") {
+      console.log("[API] Received POST to /api/process");
       req.json().then((data: any) => {
+        console.log("[API] Form data:", JSON.stringify(data, null, 2));
         const {
           sessionId,
           figmaUrl,
@@ -664,6 +672,7 @@ const server = Bun.serve({
           skipDecomposition,
         } = data;
 
+        console.log(`[API] Calling processJob for session ${sessionId}`);
         // Start processing in background with error handling
         processJob(
           sessionId,
@@ -673,7 +682,7 @@ const server = Bun.serve({
           promptStyle,
           skipDecomposition
         ).catch((error) => {
-          console.error("Error in processJob:", error);
+          console.error("[API] Error in processJob:", error);
           // Try to send error to client if connection still exists
           try {
             sendSSE(sessionId, {
@@ -684,6 +693,8 @@ const server = Bun.serve({
             // Ignore if SSE connection is already closed
           }
         });
+      }).catch((error) => {
+        console.error("[API] Failed to parse JSON:", error);
       });
 
       return new Response("OK", { status: 202 });

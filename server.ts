@@ -590,6 +590,23 @@ const HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// Global error handlers for uncaught errors
+process.on('unhandledRejection', (error: any) => {
+  // Suppress AbortError from SSE connections
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return; // Silently ignore
+  }
+  console.error('Unhandled Rejection:', error);
+});
+
+process.on('uncaughtException', (error: any) => {
+  // Suppress AbortError from SSE connections
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return; // Silently ignore
+  }
+  console.error('Uncaught Exception:', error);
+});
+
 // Start server
 const server = Bun.serve({
   port: process.env.PORT || 3000,

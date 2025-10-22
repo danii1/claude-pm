@@ -10,6 +10,7 @@ import { runClaude, extractJiraUrl } from './lib/claude';
 
 interface CLIArgs {
   figmaUrl: string;
+  epicKey?: string;
   extraInstructions?: string;
 }
 
@@ -18,11 +19,15 @@ function parseArgs(): CLIArgs {
 
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     console.log(`
-Usage: bun run index.ts <figma-url> [extra-instructions]
+Usage: bun run index.ts <figma-url> [options] [extra-instructions]
 
 Arguments:
   figma-url            Figma design node URL (required)
   extra-instructions   Additional instructions for the PM requirements (optional)
+
+Options:
+  --epic, -e <key>     Jira epic key to link the story to (e.g., PROJ-100)
+  --help, -h           Show this help message
 
 Environment variables (set in .env):
   JIRA_DOMAIN         Your Jira domain (e.g., your-org.atlassian.net)
@@ -30,30 +35,52 @@ Environment variables (set in .env):
   JIRA_API_TOKEN      Your Jira API token
   JIRA_PROJECT_KEY    Your Jira project key (e.g., PROJ)
 
-Example:
-  bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" "Focus on accessibility"
+Examples:
+  bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456"
+  bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
+  bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 "Focus on accessibility"
     `);
     process.exit(0);
   }
 
-  const figmaUrl = args[0];
+  let figmaUrl: string | undefined;
+  let epicKey: string | undefined;
+  const extraParts: string[] = [];
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (!arg) continue; // Skip undefined args (shouldn't happen but satisfies TS)
+
+    if (arg === '--epic' || arg === '-e') {
+      if (i + 1 >= args.length) {
+        console.error('Error: --epic requires a value');
+        process.exit(1);
+      }
+      epicKey = args[i + 1]!; // Non-null assertion safe due to check above
+      i++; // Skip next arg
+    } else if (!figmaUrl) {
+      figmaUrl = arg;
+    } else {
+      extraParts.push(arg);
+    }
+  }
+
   if (!figmaUrl) {
     console.error('Error: Figma URL is required');
     process.exit(1);
   }
 
-  const extraInstructions = args.slice(1).join(' ');
-
   return {
     figmaUrl,
-    extraInstructions: extraInstructions || undefined,
+    epicKey,
+    extraInstructions: extraParts.length > 0 ? extraParts.join(' ') : undefined,
   };
 }
 
 async function main() {
   try {
     // Parse arguments
-    const { figmaUrl, extraInstructions } = parseArgs();
+    const { figmaUrl, epicKey, extraInstructions } = parseArgs();
 
     // Load configuration
     console.log('📋 Loading configuration...\n');
@@ -65,6 +92,9 @@ async function main() {
     // Step 1: Run Claude to create Jira story from Figma design
     console.log('Step 1: Creating Jira story from Figma design\n');
     console.log(`Figma URL: ${figmaUrl}`);
+    if (epicKey) {
+      console.log(`Epic: ${epicKey}`);
+    }
     if (extraInstructions) {
       console.log(`Extra instructions: ${extraInstructions}`);
     }
@@ -73,7 +103,7 @@ async function main() {
 Write Jira task with PM-style requirements for the following screen/component with Figma link:
 
 ${figmaUrl}
-
+${epicKey ? `\nThis story should be part of epic: ${epicKey}` : ''}
 ${extraInstructions ? `\nAdditional instructions: ${extraInstructions}` : ''}
 
 Please provide:
@@ -108,7 +138,23 @@ After analyzing the Figma design, create a Jira story with these requirements.
       process.exit(1);
     }
 
-    console.log(`\n✅ Jira story created: ${jiraStoryUrl}\n`);
+    console.log(`\n✅ Jira story created: ${jiraStoryUrl}`);
+
+    // Link to epic if provided
+    if (epicKey) {
+      console.log(`🔗 Linking story to epic ${epicKey}...`);
+      const storyKey = jiraStoryUrl.split('/').pop();
+      if (storyKey) {
+        try {
+          await jiraClient.linkToEpic(storyKey, epicKey);
+          console.log(`✅ Story linked to epic ${epicKey}`);
+        } catch (error) {
+          console.error(`⚠️  Warning: Failed to link to epic: ${error instanceof Error ? error.message : error}`);
+          console.log('Continuing with task decomposition...');
+        }
+      }
+    }
+    console.log();
 
     // Step 2: Run Claude to decompose the story into tasks
     console.log('Step 2: Decomposing story into tasks\n');
@@ -140,6 +186,9 @@ Please create subtasks that are:
     console.log('\n✅ Story decomposed into tasks successfully!\n');
     console.log('Summary:');
     console.log(`  Story: ${jiraStoryUrl}`);
+    if (epicKey) {
+      console.log(`  Epic: ${epicKey}`);
+    }
     console.log('\n🎉 Done!');
 
   } catch (error) {

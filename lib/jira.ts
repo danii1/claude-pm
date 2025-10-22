@@ -161,4 +161,19 @@ export class JiraClient {
       },
     });
   }
+
+  async linkToEpic(storyKey: string, epicKey: string): Promise<void> {
+    // In Jira API v3, you link to an epic by setting the parent field
+    await this.request(
+      `/issue/${storyKey}`,
+      'PUT',
+      {
+        fields: {
+          parent: {
+            key: epicKey,
+          },
+        },
+      }
+    );
+  }
 }

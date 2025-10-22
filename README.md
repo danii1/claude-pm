@@ -49,13 +49,18 @@ JIRA_PROJECT_KEY=PROJ
 ## Usage
 
 ```bash
-bun run index.ts <figma-url> [extra-instructions]
+bun run index.ts <figma-url> [options] [extra-instructions]
 ```
 
 ### Arguments
 
 - `figma-url` (required): Figma design node URL
 - `extra-instructions` (optional): Additional context for the PM requirements
+
+### Options
+
+- `--epic, -e <key>`: Link the created story to a Jira epic (e.g., PROJ-100)
+- `--help, -h`: Show help message
 
 ### Examples
 
@@ -65,10 +70,16 @@ bun run index.ts <figma-url> [extra-instructions]
 bun run index.ts "https://www.figma.com/design/YTw63KfvSwcMGAyAMxiD8K/Briefs?node-id=5073-14946"
 ```
 
-**With extra instructions:**
+**Link to an epic:**
 
 ```bash
-bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" "Focus on accessibility and mobile responsiveness"
+bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
+```
+
+**With epic and extra instructions:**
+
+```bash
+bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 "Focus on accessibility"
 ```
 
 ## How It Works
@@ -79,7 +90,8 @@ bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" "Focus 
    - Acceptance criteria
    - Technical considerations
    - Design notes
-3. **Task Decomposition**: Breaks down the story into subtasks that are:
+3. **Epic Linking** (optional): Links the story to the specified epic for organization
+4. **Task Decomposition**: Breaks down the story into subtasks that are:
    - Focused on single responsibilities
    - Completable within 1-2 days
    - Properly linked to the parent story

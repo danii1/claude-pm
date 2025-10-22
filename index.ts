@@ -108,14 +108,17 @@ ${extraInstructions ? `\nAdditional instructions: ${extraInstructions}` : ""}
 
 IMPORTANT: Implementation should use the existing design system. Do NOT include specific design notes or styling details from Figma.
 
-Please analyze the Figma design and provide the requirements in the following JSON format:
+Please analyze the Figma design and provide the requirements in the following JSON format with MARKDOWN formatting:
 
 {
   "summary": "Brief, clear title for the story",
-  "description": "Detailed description including:\\n- User story (As a... I want... So that...)\\n- Acceptance criteria\\n- Technical considerations\\n- Note: Use existing design system components and patterns"
+  "description": "## User Story\\n\\nAs a [user type]\\nI want [goal]\\nSo that [benefit]\\n\\n## Acceptance Criteria\\n\\n- Criterion 1\\n- Criterion 2\\n- Criterion 3\\n\\n## Technical Considerations\\n\\n- Use existing **design system** components\\n- Consider \`api-patterns\` and existing architecture\\n\\n**Note:** Implementation must use existing design system components and patterns, not Figma-specific styling."
 }
 
-Return ONLY valid JSON, no additional text.
+IMPORTANT:
+- Format the description using MARKDOWN (## headers, - bullets, **bold**, \`code\`)
+- This ensures proper rich formatting in Jira
+- Return ONLY valid JSON, no additional text
     `.trim();
 
     const storyResult = await runClaude(
@@ -202,11 +205,12 @@ Requirements for each task:
 - Completable within 1-2 days
 - Not too granular (group similar small tasks together)
 - Not too large (break down complex work)
-- MUST include a detailed description with:
-  * What needs to be done (functionality, not design specifics)
-  * Acceptance criteria or definition of done
-  * Any technical considerations or dependencies
-  * Implementation notes if applicable
+- MUST include a detailed description formatted in MARKDOWN with:
+  * Use ## for section headers (e.g., "## What needs to be done", "## Acceptance Criteria", "## Technical Considerations")
+  * Use - for bullet points
+  * Use **text** for important terms or emphasis
+  * Use \`code\` for technical terms, function names, or code references
+  * Clear sections explaining functionality (not design specifics)
 
 Return your response ONLY as valid JSON in this exact format (no markdown, no code blocks, no additional text):
 
@@ -214,12 +218,15 @@ Return your response ONLY as valid JSON in this exact format (no markdown, no co
   "subtasks": [
     {
       "summary": "Brief, actionable task title",
-      "description": "Detailed description with what needs to be done, acceptance criteria, technical considerations, and implementation notes. Use existing design system components."
+      "description": "## What needs to be done\\n\\nDetailed explanation...\\n\\n## Acceptance Criteria\\n\\n- Criterion 1\\n- Criterion 2\\n\\n## Technical Considerations\\n\\n- Use existing **design system** components\\n- Consider \`existing-api-method\` patterns"
     }
   ]
 }
 
-IMPORTANT: Each task MUST have a comprehensive description. Do not leave descriptions empty.
+IMPORTANT:
+- Each task MUST have a comprehensive description
+- Format descriptions using MARKDOWN (headers, bullets, bold, code)
+- This ensures proper formatting in Jira
     `.trim();
 
     const decomposeResult = await runClaude(

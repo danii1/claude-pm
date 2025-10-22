@@ -99,22 +99,10 @@ export class JiraClient {
     summary: string,
     description?: string
   ): Promise<JiraTask> {
-    // Debug: Log input description
-    console.log(`\n[DEBUG] Creating subtask: "${summary.substring(0, 60)}..."`);
-    console.log(`[DEBUG] Raw description (first 200 chars): ${description?.substring(0, 200) || 'undefined'}`);
-
     // Convert description to ADF format if provided
     const descriptionADF = description
       ? JiraFormatter.textToADF(description)
       : undefined;
-
-    // Debug: Log ADF output
-    if (descriptionADF) {
-      console.log(`[DEBUG] ADF content nodes: ${descriptionADF.content?.length || 0}`);
-      console.log(`[DEBUG] First node type: ${descriptionADF.content?.[0]?.type || 'none'}`);
-    } else {
-      console.log(`[DEBUG] No ADF generated (description was empty)`);
-    }
 
     const issueData = {
       fields: {

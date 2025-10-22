@@ -70,14 +70,14 @@ function parseArgs(): CLIArgs {
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
-Usage: claude-pm <figma-url> [options] [extra-instructions]
+Usage: claude-pm <figma-url> [options]
 
 Arguments:
   figma-url            Figma design node URL (required)
-  extra-instructions   Additional instructions for the PM requirements (optional)
 
 Options:
   --epic, -e <key>     Jira epic key to link the story to (e.g., PROJ-100)
+  --custom, -c <text>  Additional custom instructions for the requirements
   --style, -s <type>   Prompt style: "technical" (default) or "pm"
                        - technical: Includes Technical Considerations section
                        - pm: Focuses on user stories and acceptance criteria
@@ -94,20 +94,21 @@ Environment variables (set in .env):
 Examples:
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456"
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -c "Focus on accessibility"
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --style pm
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --skip-decomposition
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --confirm
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -s pm "Focus on accessibility"
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -s pm -c "Focus on accessibility"
     `);
     process.exit(0);
   }
 
   let figmaUrl: string | undefined;
   let epicKey: string | undefined;
+  let customInstructions: string | undefined;
   let promptStyle: "technical" | "pm" = "technical"; // Default to technical
   let skipDecomposition = false;
   let confirm = false;
-  const extraParts: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -119,6 +120,13 @@ Examples:
         process.exit(1);
       }
       epicKey = args[i + 1]!; // Non-null assertion safe due to check above
+      i++; // Skip next arg
+    } else if (arg === "--custom" || arg === "-c") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --custom requires a value");
+        process.exit(1);
+      }
+      customInstructions = args[i + 1]!; // Non-null assertion safe due to check above
       i++; // Skip next arg
     } else if (arg === "--style" || arg === "-s") {
       if (i + 1 >= args.length) {
@@ -139,7 +147,9 @@ Examples:
     } else if (!figmaUrl) {
       figmaUrl = arg;
     } else {
-      extraParts.push(arg);
+      console.error(`Error: Unknown argument "${arg}"`);
+      console.error('Use --help to see available options');
+      process.exit(1);
     }
   }
 
@@ -154,7 +164,7 @@ Examples:
     promptStyle,
     skipDecomposition,
     confirm,
-    extraInstructions: extraParts.length > 0 ? extraParts.join(" ") : undefined,
+    extraInstructions: customInstructions,
   };
 }
 
@@ -178,7 +188,7 @@ async function main() {
       console.log(`Epic: ${epicKey}`);
     }
     if (extraInstructions) {
-      console.log(`Extra instructions: ${extraInstructions}`);
+      console.log(`Custom instructions: ${extraInstructions}`);
     }
 
     const storyPrompt = await loadPrompt(promptStyle, "story-generation.txt", {

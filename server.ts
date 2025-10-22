@@ -38,7 +38,12 @@ async function loadPrompt(
 function sendSSE(sessionId: string, data: any) {
   const controller = sseConnections.get(sessionId);
   if (controller) {
-    controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
+    try {
+      controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
+    } catch (error) {
+      // Connection was closed, remove it from the map
+      sseConnections.delete(sessionId);
+    }
   }
 }
 
@@ -218,7 +223,11 @@ async function processJob(
     // Close the SSE connection
     const controller = sseConnections.get(sessionId);
     if (controller) {
-      controller.close();
+      try {
+        controller.close();
+      } catch (error) {
+        // Connection already closed, ignore
+      }
       sseConnections.delete(sessionId);
     }
   }

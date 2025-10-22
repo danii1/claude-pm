@@ -351,16 +351,31 @@ async function main() {
 
       // If confirmation mode is enabled, ask user
       if (confirm) {
-        console.log(`\n[${i + 1}/${subtasksData.subtasks.length}] ${subtask.summary}`);
+        // Visual separator between tasks
+        console.log('\n' + '─'.repeat(80));
+        console.log(`\n📋 Task ${i + 1}/${subtasksData.subtasks.length}`);
+        console.log(`   ${subtask.summary}\n`);
+
         if (subtask.description) {
-          const descPreview = subtask.description.substring(0, 200);
-          console.log(`   ${descPreview}${subtask.description.length > 200 ? '...' : ''}`);
+          // Show first 300 characters of description with better formatting
+          const descPreview = subtask.description.substring(0, 300);
+          // Split into lines and indent each line
+          const lines = descPreview.split('\n');
+          for (const line of lines) {
+            if (line.trim()) {
+              console.log(`   ${line}`);
+            }
+          }
+          if (subtask.description.length > 300) {
+            console.log('   ...');
+          }
+          console.log(''); // Extra blank line
         }
 
-        const shouldCreate = await askConfirm(`\nCreate this subtask?`);
+        const shouldCreate = await askConfirm(`Create this subtask?`);
         if (!shouldCreate) {
           skippedSubtasks.push(subtask.summary);
-          console.log(`   ⏭️  Skipped`);
+          console.log(`⏭️  Skipped\n`);
           continue;
         }
       }
@@ -375,12 +390,21 @@ async function main() {
           description
         );
         createdSubtasks.push(created);
-        console.log(`   ✅ ${created.key}: ${subtask.summary}`);
+        if (confirm) {
+          console.log(`✅ Created: ${created.key}\n`);
+        } else {
+          console.log(`   ✅ ${created.key}: ${subtask.summary}`);
+        }
       } catch (error) {
-        console.error(`   ⚠️  Failed to create subtask: ${subtask.summary}`);
-        console.error(
-          `      Error: ${error instanceof Error ? error.message : error}`
-        );
+        if (confirm) {
+          console.error(`⚠️  Failed to create subtask: ${subtask.summary}`);
+          console.error(`   Error: ${error instanceof Error ? error.message : error}\n`);
+        } else {
+          console.error(`   ⚠️  Failed to create subtask: ${subtask.summary}`);
+          console.error(
+            `      Error: ${error instanceof Error ? error.message : error}`
+          );
+        }
       }
     }
 

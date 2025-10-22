@@ -9,7 +9,9 @@
   "scripts": {
     "build": "bun run tsc --noEmit",
     "install-global": "bun run build && bun link",
-    "uninstall-global": "bun unlink"
+    "uninstall-global": "bun unlink",
+    "web": "bun run server.ts",
+    "dev": "bun --hot server.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

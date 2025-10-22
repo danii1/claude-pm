@@ -81,11 +81,14 @@ function parseArgs(): CLIArgs {
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
 Usage: claude-pm <figma-url> [options]
+       claude-pm --web [--port <port>]
 
 Arguments:
   figma-url            Figma design node URL (required)
 
 Options:
+  --web                Start web interface server
+  --port <number>      Port for web server (default: 3000, only with --web)
   --epic, -e <key>     Jira epic key to link the story to (e.g., PROJ-100)
   --custom, -c <text>  Additional custom instructions for the requirements
   --style, -s <type>   Prompt style: "technical" (default) or "pm"
@@ -102,6 +105,8 @@ Environment variables (set in .env):
   JIRA_PROJECT_KEY    Your Jira project key (e.g., PROJ)
 
 Examples:
+  claude-pm --web                    # Start web interface on port 3000
+  claude-pm --web --port 8080        # Start web interface on custom port
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456"
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -c "Focus on accessibility"
@@ -428,4 +433,26 @@ async function main() {
   }
 }
 
-main();
+// Check if we should start web server
+const args = Bun.argv.slice(2);
+if (args.includes("--web")) {
+  // Extract port if provided
+  const portIndex = args.indexOf("--port");
+  const port = portIndex !== -1 && args[portIndex + 1]
+    ? parseInt(args[portIndex + 1]!, 10)
+    : 3000;
+
+  // Set port in environment
+  process.env.PORT = port.toString();
+
+  // Dynamically import and start the server
+  import("./server").then(() => {
+    // Server will start automatically when module is loaded
+  }).catch((error) => {
+    console.error("Failed to start web server:", error);
+    process.exit(1);
+  });
+} else {
+  // Run CLI mode
+  main();
+}

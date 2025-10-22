@@ -24,13 +24,21 @@ A CLI utility that automates creating Jira stories from Figma designs and decomp
 bun install
 ```
 
-2. Set up environment variables:
+2. (Optional) Install globally to use from any directory:
+
+```bash
+bun run install-global
+```
+
+After global installation, you can use `claude-pm` command from anywhere, including the web interface with `claude-pm --web`.
+
+3. Set up environment variables:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Edit `.env` with your configuration:
+4. Edit `.env` with your configuration:
 
 ```env
 # Jira Configuration
@@ -58,21 +66,52 @@ The Claude CLI path is typically located at:
 
 ## Usage
 
+### Web Interface (Recommended for Non-Technical Users)
+
+Start the web server:
+
 ```bash
-bun run index.ts <figma-url> [options] [extra-instructions]
+# If installed globally
+claude-pm --web
+
+# Or from the project directory
+bun run web
 ```
 
-### Arguments
+Then open your browser to http://localhost:3000
+
+**Custom port:**
+```bash
+claude-pm --web --port 8080
+```
+
+The web interface provides:
+- User-friendly form interface
+- Real-time progress updates
+- No command-line knowledge required
+- Visual feedback for story and subtask creation
+- Can be run from any directory when installed globally
+
+### CLI Usage (For Advanced Users)
+
+```bash
+bun run index.ts <figma-url> [options]
+```
+
+#### Arguments
 
 - `figma-url` (required): Figma design node URL
-- `extra-instructions` (optional): Additional context for the PM requirements
 
-### Options
+#### Options
 
 - `--epic, -e <key>`: Link the created story to a Jira epic (e.g., PROJ-100)
+- `--custom, -c <text>`: Additional custom instructions for the requirements
+- `--style, -s <type>`: Prompt style: "technical" (default) or "pm"
+- `--skip-decomposition`: Skip the task decomposition step (only create story)
+- `--confirm`: Interactively confirm each subtask before creating in Jira
 - `--help, -h`: Show help message
 
-### Examples
+#### Examples
 
 **Basic usage:**
 
@@ -111,10 +150,14 @@ bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ
 ```
 claude-pm/
 ├── index.ts              # Main CLI entry point
+├── server.ts             # Web server with Bun.serve()
 ├── lib/
 │   ├── config.ts        # Configuration management
 │   ├── jira.ts          # Jira API integration
 │   └── claude.ts        # Claude CLI wrapper
+├── prompts/
+│   ├── technical/       # Technical-style prompts
+│   └── pm/              # PM-style prompts
 ├── .env.example         # Environment template
 └── README.md
 ```
@@ -123,13 +166,21 @@ claude-pm/
 
 This project uses Bun as the runtime and package manager. See [CLAUDE.md](./CLAUDE.md) for detailed development guidelines.
 
+**Available scripts:**
+
+```bash
+bun run web          # Start web server
+bun run dev          # Start web server with hot reload
+bun run build        # Type check the project
+```
+
 **Type checking:**
 
 ```bash
 bun run tsc --noEmit
 ```
 
-**Run with hot reload:**
+**CLI with hot reload:**
 
 ```bash
 bun --hot index.ts

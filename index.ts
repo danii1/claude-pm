@@ -121,7 +121,7 @@ After analyzing the Figma design, create a Jira story with these requirements.
       maxTurns: 25,
       skipPermissions: true,
       planMode: true,
-    });
+    }, config.claudeCliPath);
 
     if (storyResult.exitCode !== 0) {
       console.error('❌ Failed to create Jira story');
@@ -175,7 +175,7 @@ Please create subtasks that are:
       maxTurns: 300,
       skipPermissions: true,
       planMode: true,
-    });
+    }, config.claudeCliPath);
 
     if (decomposeResult.exitCode !== 0) {
       console.error('❌ Failed to decompose story');

@@ -16,7 +16,8 @@ export interface ClaudeResult {
 
 export async function runClaude(
   prompt: string,
-  options: ClaudeOptions
+  options: ClaudeOptions,
+  claudeCliPath: string
 ): Promise<ClaudeResult> {
   const args = [];
 
@@ -33,7 +34,7 @@ export async function runClaude(
 
   console.log('\n🤖 Running Claude...\n');
 
-  const proc = Bun.spawn(['claude', ...args], {
+  const proc = Bun.spawn([claudeCliPath, ...args], {
     stdout: 'pipe',
     stderr: 'pipe',
   });

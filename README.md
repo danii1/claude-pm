@@ -30,13 +30,17 @@ bun install
 cp .env.example .env
 ```
 
-3. Edit `.env` with your Jira credentials:
+3. Edit `.env` with your configuration:
 
 ```env
+# Jira Configuration
 JIRA_DOMAIN=your-org.atlassian.net
 JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=PROJ
+
+# Claude CLI Configuration
+CLAUDE_CLI_PATH=/path/to/claude
 ```
 
 ### Getting Jira API Token
@@ -45,6 +49,12 @@ JIRA_PROJECT_KEY=PROJ
 2. Click "Create API token"
 3. Give it a name and copy the token
 4. Add it to your `.env` file
+
+### Finding Claude CLI Path
+
+The Claude CLI path is typically located at:
+- `~/.claude/local/claude` (default installation)
+- Or run `which claude` if it's in your PATH
 
 ## Usage
 

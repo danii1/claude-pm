@@ -9,10 +9,11 @@ export interface Config {
     apiToken: string;
     projectKey: string;
   };
+  claudeCliPath: string;
 }
 
 export function loadConfig(): Config {
-  const required = ['JIRA_DOMAIN', 'JIRA_EMAIL', 'JIRA_API_TOKEN', 'JIRA_PROJECT_KEY'];
+  const required = ['JIRA_DOMAIN', 'JIRA_EMAIL', 'JIRA_API_TOKEN', 'JIRA_PROJECT_KEY', 'CLAUDE_CLI_PATH'];
   const missing = required.filter(key => !process.env[key]);
 
   if (missing.length > 0) {
@@ -29,5 +30,6 @@ export function loadConfig(): Config {
       apiToken: process.env.JIRA_API_TOKEN!,
       projectKey: process.env.JIRA_PROJECT_KEY!,
     },
+    claudeCliPath: process.env.CLAUDE_CLI_PATH!,
   };
 }

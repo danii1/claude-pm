@@ -71,13 +71,18 @@ async function processJob(
     // Step 1: Create story
     const storyPrompt = await loadPrompt(promptStyle, "story-generation.txt", {
       figmaUrl,
-      epicContext: epicKey ? `\nThis story will be part of epic: ${epicKey}` : "",
+      epicContext: epicKey
+        ? `\nThis story will be part of epic: ${epicKey}`
+        : "",
       extraInstructions: extraInstructions
         ? `\nAdditional instructions: ${extraInstructions}`
         : "",
     });
 
-    sendSSE(sessionId, { type: "log", message: "Running Claude to analyze design..." });
+    sendSSE(sessionId, {
+      type: "log",
+      message: "Running Claude to analyze design...",
+    });
 
     const storyResult = await runClaude(
       storyPrompt,
@@ -104,7 +109,9 @@ async function processJob(
       }
     } catch (error) {
       throw new Error(
-        `Failed to parse story requirements: ${error instanceof Error ? error.message : error}`
+        `Failed to parse story requirements: ${
+          error instanceof Error ? error.message : error
+        }`
       );
     }
 
@@ -127,25 +134,39 @@ async function processJob(
 
     // Link to epic if provided
     if (epicKey) {
-      sendSSE(sessionId, { type: "log", message: `Linking to epic ${epicKey}...` });
+      sendSSE(sessionId, {
+        type: "log",
+        message: `Linking to epic ${epicKey}...`,
+      });
       try {
         await jiraClient.linkToEpic(jiraStory.key, epicKey);
-        sendSSE(sessionId, { type: "log", message: `Linked to epic ${epicKey}` });
+        sendSSE(sessionId, {
+          type: "log",
+          message: `Linked to epic ${epicKey}`,
+        });
       } catch (error) {
         sendSSE(sessionId, {
           type: "warning",
-          message: `Failed to link to epic: ${error instanceof Error ? error.message : error}`,
+          message: `Failed to link to epic: ${
+            error instanceof Error ? error.message : error
+          }`,
         });
       }
     }
 
     if (skipDecomposition) {
-      sendSSE(sessionId, { type: "complete", message: "Story created successfully!" });
+      sendSSE(sessionId, {
+        type: "complete",
+        message: "Story created successfully!",
+      });
       return;
     }
 
     // Step 2: Decompose into subtasks
-    sendSSE(sessionId, { type: "log", message: "Decomposing story into subtasks..." });
+    sendSSE(sessionId, {
+      type: "log",
+      message: "Decomposing story into subtasks...",
+    });
 
     const decomposePrompt = await loadPrompt(promptStyle, "decomposition.txt", {
       storySummary: storyData.summary,
@@ -177,7 +198,9 @@ async function processJob(
       }
     } catch (error) {
       throw new Error(
-        `Failed to parse subtasks: ${error instanceof Error ? error.message : error}`
+        `Failed to parse subtasks: ${
+          error instanceof Error ? error.message : error
+        }`
       );
     }
 
@@ -591,25 +614,26 @@ const HTML = `<!DOCTYPE html>
 </html>`;
 
 // Global error handlers for uncaught errors
-process.on('unhandledRejection', (error: any) => {
+process.on("unhandledRejection", (error: any) => {
   // Suppress AbortError from SSE connections
   if (error instanceof DOMException && error.name === "AbortError") {
     return; // Silently ignore
   }
-  console.error('Unhandled Rejection:', error);
+  console.error("Unhandled Rejection:", error);
 });
 
-process.on('uncaughtException', (error: any) => {
+process.on("uncaughtException", (error: any) => {
   // Suppress AbortError from SSE connections
   if (error instanceof DOMException && error.name === "AbortError") {
     return; // Silently ignore
   }
-  console.error('Uncaught Exception:', error);
+  console.error("Uncaught Exception:", error);
 });
 
 // Start server
 const server = Bun.serve({
   port: process.env.PORT || 3000,
+  idleTimeout: 255, // max timeout for long-running Claude operations
   error(error) {
     // Suppress AbortError from SSE connections being closed
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -631,22 +655,35 @@ const server = Bun.serve({
     // Handle form submission
     if (url.pathname === "/api/process" && req.method === "POST") {
       req.json().then((data: any) => {
-        const { sessionId, figmaUrl, epicKey, customInstructions, promptStyle, skipDecomposition } = data;
+        const {
+          sessionId,
+          figmaUrl,
+          epicKey,
+          customInstructions,
+          promptStyle,
+          skipDecomposition,
+        } = data;
 
         // Start processing in background with error handling
-        processJob(sessionId, figmaUrl, epicKey, customInstructions, promptStyle, skipDecomposition)
-          .catch((error) => {
-            console.error("Error in processJob:", error);
-            // Try to send error to client if connection still exists
-            try {
-              sendSSE(sessionId, {
-                type: "error",
-                message: error instanceof Error ? error.message : String(error),
-              });
-            } catch (e) {
-              // Ignore if SSE connection is already closed
-            }
-          });
+        processJob(
+          sessionId,
+          figmaUrl,
+          epicKey,
+          customInstructions,
+          promptStyle,
+          skipDecomposition
+        ).catch((error) => {
+          console.error("Error in processJob:", error);
+          // Try to send error to client if connection still exists
+          try {
+            sendSSE(sessionId, {
+              type: "error",
+              message: error instanceof Error ? error.message : String(error),
+            });
+          } catch (e) {
+            // Ignore if SSE connection is already closed
+          }
+        });
       });
 
       return new Response("OK", { status: 202 });
@@ -666,7 +703,7 @@ const server = Bun.serve({
 
           // Send initial connection message
           try {
-            controller.enqueue("data: {\"type\":\"connected\"}\n\n");
+            controller.enqueue('data: {"type":"connected"}\n\n');
           } catch (error) {
             // Connection closed before we could send, ignore
             sseConnections.delete(sessionId);
@@ -684,7 +721,7 @@ const server = Bun.serve({
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
         },
       });
     }
@@ -693,5 +730,7 @@ const server = Bun.serve({
   },
 });
 
-console.log(`🚀 Claude PM web interface running at http://localhost:${server.port}`);
+console.log(
+  `🚀 Claude PM web interface running at http://localhost:${server.port}`
+);
 console.log(`   Open your browser and navigate to the URL above`);

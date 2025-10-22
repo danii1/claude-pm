@@ -6,7 +6,7 @@
 
 import { loadConfig } from './lib/config';
 import { JiraClient } from './lib/jira';
-import { runClaude, extractJiraUrl } from './lib/claude';
+import { runClaude } from './lib/claude';
 
 interface CLIArgs {
   figmaUrl: string;
@@ -100,21 +100,20 @@ async function main() {
     }
 
     const storyPrompt = `
-Write Jira task with PM-style requirements for the following screen/component with Figma link:
+Analyze the following Figma design and generate PM-style requirements for a Jira story:
 
 ${figmaUrl}
-${epicKey ? `\nThis story should be part of epic: ${epicKey}` : ''}
+${epicKey ? `\nThis story will be part of epic: ${epicKey}` : ''}
 ${extraInstructions ? `\nAdditional instructions: ${extraInstructions}` : ''}
 
-Please provide:
-1. A clear, concise summary/title
-2. Detailed description with:
-   - User story (As a... I want... So that...)
-   - Acceptance criteria
-   - Technical considerations
-   - Design notes from the Figma
+Please analyze the Figma design and provide the requirements in the following JSON format:
 
-After analyzing the Figma design, create a Jira story with these requirements.
+{
+  "summary": "Brief, clear title for the story",
+  "description": "Detailed description including:\\n- User story (As a... I want... So that...)\\n- Acceptance criteria\\n- Technical considerations\\n- Design notes from the Figma"
+}
+
+Return ONLY valid JSON, no additional text.
     `.trim();
 
     const storyResult = await runClaude(storyPrompt, {
@@ -124,34 +123,51 @@ After analyzing the Figma design, create a Jira story with these requirements.
     }, config.claudeCliPath);
 
     if (storyResult.exitCode !== 0) {
-      console.error('❌ Failed to create Jira story');
+      console.error('❌ Failed to analyze Figma design');
       console.error(storyResult.stderr);
       process.exit(1);
     }
 
-    // Extract Jira story URL from output
-    const jiraStoryUrl = extractJiraUrl(storyResult.stdout, config.jira.domain);
+    // Parse JSON from Claude output (may be in code blocks)
+    let storyData;
+    try {
+      let jsonText = storyResult.stdout.trim();
+      const jsonMatch = jsonText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1]!; // Safe because regex has capture group
+      }
+      storyData = JSON.parse(jsonText);
 
-    if (!jiraStoryUrl) {
-      console.error('\n❌ Could not find Jira story URL in Claude output');
+      if (!storyData.summary || !storyData.description) {
+        throw new Error('Missing required fields: summary and description');
+      }
+    } catch (error) {
+      console.error('\n❌ Failed to parse story requirements from Claude output');
+      console.error('Error:', error instanceof Error ? error.message : error);
       console.error('Output:', storyResult.stdout);
       process.exit(1);
     }
 
-    console.log(`\n✅ Jira story created: ${jiraStoryUrl}`);
+    console.log('\n📝 Creating Jira story...');
+    console.log(`   Title: ${storyData.summary}`);
+
+    // Create the Jira story via API
+    const jiraStory = await jiraClient.createStory(
+      storyData.summary,
+      storyData.description
+    );
+
+    console.log(`\n✅ Jira story created: ${jiraStory.url}`);
 
     // Link to epic if provided
     if (epicKey) {
       console.log(`🔗 Linking story to epic ${epicKey}...`);
-      const storyKey = jiraStoryUrl.split('/').pop();
-      if (storyKey) {
-        try {
-          await jiraClient.linkToEpic(storyKey, epicKey);
-          console.log(`✅ Story linked to epic ${epicKey}`);
-        } catch (error) {
-          console.error(`⚠️  Warning: Failed to link to epic: ${error instanceof Error ? error.message : error}`);
-          console.log('Continuing with task decomposition...');
-        }
+      try {
+        await jiraClient.linkToEpic(jiraStory.key, epicKey);
+        console.log(`✅ Story linked to epic ${epicKey}`);
+      } catch (error) {
+        console.error(`⚠️  Warning: Failed to link to epic: ${error instanceof Error ? error.message : error}`);
+        console.log('Continuing with task decomposition...');
       }
     }
     console.log();
@@ -160,15 +176,34 @@ After analyzing the Figma design, create a Jira story with these requirements.
     console.log('Step 2: Decomposing story into tasks\n');
 
     const decomposePrompt = `
-Decompose the following Jira story: ${jiraStoryUrl} into smaller tasks, link them to the story:
+Decompose the following Jira story into smaller, actionable subtasks:
+
+Story: ${storyData.summary}
+URL: ${jiraStory.url}
+
+Description:
+${storyData.description}
 
 Ensure that the tasks are not too small (you can group similar tasks) and not too big (doable within 1-2 days).
 
-Please create subtasks that are:
+Please provide subtasks in the following JSON format:
+
+{
+  "subtasks": [
+    {
+      "summary": "Brief, actionable task title",
+      "description": "Optional detailed description if needed (can be empty string)"
+    }
+  ]
+}
+
+Create subtasks that are:
 - Focused on a single responsibility
 - Completable within 1-2 days
 - Clear and actionable
-- Properly linked to the parent story
+- Not too granular (group similar small tasks together)
+
+Return ONLY valid JSON, no additional text.
     `.trim();
 
     const decomposeResult = await runClaude(decomposePrompt, {
@@ -183,9 +218,50 @@ Please create subtasks that are:
       process.exit(1);
     }
 
+    // Parse subtasks JSON from Claude output
+    let subtasksData;
+    try {
+      let jsonText = decomposeResult.stdout.trim();
+      const jsonMatch = jsonText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1]!; // Safe because regex has capture group
+      }
+      subtasksData = JSON.parse(jsonText);
+
+      if (!subtasksData.subtasks || !Array.isArray(subtasksData.subtasks)) {
+        throw new Error('Expected subtasks array in response');
+      }
+    } catch (error) {
+      console.error('\n❌ Failed to parse subtasks from Claude output');
+      console.error('Error:', error instanceof Error ? error.message : error);
+      console.error('Output:', decomposeResult.stdout);
+      process.exit(1);
+    }
+
+    console.log(`\n✅ Claude suggested ${subtasksData.subtasks.length} subtasks\n`);
+    console.log('📝 Creating subtasks in Jira...\n');
+
+    // Create each subtask via API
+    const createdSubtasks = [];
+    for (const subtask of subtasksData.subtasks) {
+      try {
+        const created = await jiraClient.createSubtask(
+          jiraStory.key,
+          subtask.summary,
+          subtask.description || undefined
+        );
+        createdSubtasks.push(created);
+        console.log(`   ✅ ${created.key}: ${subtask.summary}`);
+      } catch (error) {
+        console.error(`   ⚠️  Failed to create subtask: ${subtask.summary}`);
+        console.error(`      Error: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+
     console.log('\n✅ Story decomposed into tasks successfully!\n');
     console.log('Summary:');
-    console.log(`  Story: ${jiraStoryUrl}`);
+    console.log(`  Story: ${jiraStory.url}`);
+    console.log(`  Created: ${createdSubtasks.length} subtasks`);
     if (epicKey) {
       console.log(`  Epic: ${epicKey}`);
     }

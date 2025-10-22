@@ -106,11 +106,13 @@ ${figmaUrl}
 ${epicKey ? `\nThis story will be part of epic: ${epicKey}` : ""}
 ${extraInstructions ? `\nAdditional instructions: ${extraInstructions}` : ""}
 
+IMPORTANT: Implementation should use the existing design system. Do NOT include specific design notes or styling details from Figma.
+
 Please analyze the Figma design and provide the requirements in the following JSON format:
 
 {
   "summary": "Brief, clear title for the story",
-  "description": "Detailed description including:\\n- User story (As a... I want... So that...)\\n- Acceptance criteria\\n- Technical considerations"
+  "description": "Detailed description including:\\n- User story (As a... I want... So that...)\\n- Acceptance criteria\\n- Technical considerations\\n- Note: Use existing design system components and patterns"
 }
 
 Return ONLY valid JSON, no additional text.
@@ -193,13 +195,15 @@ Story: ${storyData.summary}
 Description:
 ${storyData.description}
 
+IMPORTANT: Implementation should use the existing design system. Do NOT include specific design notes, colors, fonts, or styling details from Figma. Focus on functionality and behavior.
+
 Requirements for each task:
 - Focused on a single responsibility
 - Completable within 1-2 days
 - Not too granular (group similar small tasks together)
 - Not too large (break down complex work)
 - MUST include a detailed description with:
-  * What needs to be done
+  * What needs to be done (functionality, not design specifics)
   * Acceptance criteria or definition of done
   * Any technical considerations or dependencies
   * Implementation notes if applicable
@@ -210,7 +214,7 @@ Return your response ONLY as valid JSON in this exact format (no markdown, no co
   "subtasks": [
     {
       "summary": "Brief, actionable task title",
-      "description": "Detailed description with what needs to be done, acceptance criteria, technical considerations, and implementation notes"
+      "description": "Detailed description with what needs to be done, acceptance criteria, technical considerations, and implementation notes. Use existing design system components."
     }
   ]
 }

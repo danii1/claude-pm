@@ -1,4 +1,4 @@
-Decompose the following Jira story into smaller, actionable tasks with detailed descriptions.
+Decompose the following Jira story into smaller, actionable tasks with detailed descriptions. Don't be very technical, you are business/product person
 
 Story: {{storySummary}}
 
@@ -13,8 +13,7 @@ IMPORTANT:
   * Review existing screens/pages for similar patterns and implementations
   * Search for Redux actions, reducers, selectors that might be relevant or reusable
   * Identify utility functions, hooks, and helpers that could be leveraged
-- When creating subtasks, reference specific existing code files, components, functions, or patterns
-- Suggest reusing or adapting existing code rather than building everything from scratch
+- Suggest reusing or adapting existing code rather than building everything from scratch, let Claude to explore itself, don't include your findings into a task
 
 Requirements for each task:
 - Focused on a single responsibility

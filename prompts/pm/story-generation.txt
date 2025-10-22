@@ -1,4 +1,4 @@
-Analyze the following Figma design and generate PM-style requirements for a Jira story:
+Analyze the following Figma design and generate PM-style requirements for a Jira story, don't be very technical, you are business/product person:
 
 {{figmaUrl}}
 {{epicContext}}
@@ -12,7 +12,7 @@ IMPORTANT:
   * Review existing screens/pages for similar patterns
   * Search for Redux actions, reducers, selectors that might be relevant
   * Identify utility functions that could be leveraged
-- Reference specific existing code in your requirements when applicable
+- Suggest reusing or adapting existing code rather than building everything from scratch, let Claude to explore itself, don't include your findings into a task
 
 Please analyze the Figma design and provide the requirements in the following JSON format with MARKDOWN formatting:
 

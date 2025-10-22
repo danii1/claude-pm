@@ -118,7 +118,7 @@ After analyzing the Figma design, create a Jira story with these requirements.
     `.trim();
 
     const storyResult = await runClaude(storyPrompt, {
-      maxTurns: 25,
+      maxTurns: 100,
       skipPermissions: true,
       planMode: true,
     }, config.claudeCliPath);

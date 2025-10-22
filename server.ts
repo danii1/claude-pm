@@ -648,7 +648,7 @@ const server = Bun.serve({
     console.error("Server error:", error);
     return new Response("Internal Server Error", { status: 500 });
   },
-  fetch(req) {
+  async fetch(req) {
     const url = new URL(req.url);
 
     // Serve HTML page
@@ -661,8 +661,12 @@ const server = Bun.serve({
     // Handle form submission
     if (url.pathname === "/api/process" && req.method === "POST") {
       console.log("[API] Received POST to /api/process");
-      req.json().then((data: any) => {
+
+      try {
+        // Parse JSON from request body
+        const data: any = await req.json();
         console.log("[API] Form data:", JSON.stringify(data, null, 2));
+
         const {
           sessionId,
           figmaUrl,
@@ -673,7 +677,8 @@ const server = Bun.serve({
         } = data;
 
         console.log(`[API] Calling processJob for session ${sessionId}`);
-        // Start processing in background with error handling
+
+        // Start processing in background with error handling (don't await)
         processJob(
           sessionId,
           figmaUrl,
@@ -693,11 +698,12 @@ const server = Bun.serve({
             // Ignore if SSE connection is already closed
           }
         });
-      }).catch((error) => {
-        console.error("[API] Failed to parse JSON:", error);
-      });
 
-      return new Response("OK", { status: 202 });
+        return new Response("OK", { status: 202 });
+      } catch (error) {
+        console.error("[API] Failed to parse JSON:", error);
+        return new Response("Bad Request", { status: 400 });
+      }
     }
 
     // Server-Sent Events endpoint

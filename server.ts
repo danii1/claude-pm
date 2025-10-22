@@ -593,6 +593,14 @@ const HTML = `<!DOCTYPE html>
 // Start server
 const server = Bun.serve({
   port: process.env.PORT || 3000,
+  error(error) {
+    // Suppress AbortError from SSE connections being closed
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return new Response("Connection closed", { status: 499 });
+    }
+    console.error("Server error:", error);
+    return new Response("Internal Server Error", { status: 500 });
+  },
   fetch(req) {
     const url = new URL(req.url);
 
@@ -608,8 +616,20 @@ const server = Bun.serve({
       req.json().then((data: any) => {
         const { sessionId, figmaUrl, epicKey, customInstructions, promptStyle, skipDecomposition } = data;
 
-        // Start processing in background
-        processJob(sessionId, figmaUrl, epicKey, customInstructions, promptStyle, skipDecomposition);
+        // Start processing in background with error handling
+        processJob(sessionId, figmaUrl, epicKey, customInstructions, promptStyle, skipDecomposition)
+          .catch((error) => {
+            console.error("Error in processJob:", error);
+            // Try to send error to client if connection still exists
+            try {
+              sendSSE(sessionId, {
+                type: "error",
+                message: error instanceof Error ? error.message : String(error),
+              });
+            } catch (e) {
+              // Ignore if SSE connection is already closed
+            }
+          });
       });
 
       return new Response("OK", { status: 202 });
@@ -628,7 +648,12 @@ const server = Bun.serve({
           sseConnections.set(sessionId, controller);
 
           // Send initial connection message
-          controller.enqueue("data: {\"type\":\"connected\"}\n\n");
+          try {
+            controller.enqueue("data: {\"type\":\"connected\"}\n\n");
+          } catch (error) {
+            // Connection closed before we could send, ignore
+            sseConnections.delete(sessionId);
+          }
         },
         cancel() {
           // Clean up when client disconnects

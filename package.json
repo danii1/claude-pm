@@ -3,6 +3,14 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "claude-pm": "./index.ts"
+  },
+  "scripts": {
+    "build": "bun run tsc --noEmit",
+    "install-global": "bun run build && bun link",
+    "uninstall-global": "bun unlink"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

@@ -19,7 +19,7 @@ function parseArgs(): CLIArgs {
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
-Usage: bun run index.ts <figma-url> [options] [extra-instructions]
+Usage: claude-pm <figma-url> [options] [extra-instructions]
 
 Arguments:
   figma-url            Figma design node URL (required)
@@ -36,9 +36,9 @@ Environment variables (set in .env):
   JIRA_PROJECT_KEY    Your Jira project key (e.g., PROJ)
 
 Examples:
-  bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456"
-  bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
-  bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 "Focus on accessibility"
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456"
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 "Focus on accessibility"
     `);
     process.exit(0);
   }

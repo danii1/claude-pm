@@ -12,6 +12,15 @@ export interface Config {
   claudeCliPath: string;
 }
 
+/**
+ * Sanitize Jira domain by removing protocol and trailing slashes
+ */
+function sanitizeDomain(domain: string): string {
+  return domain
+    .replace(/^https?:\/\//, '') // Remove http:// or https://
+    .replace(/\/+$/, '');         // Remove trailing slashes
+}
+
 export function loadConfig(): Config {
   const required = ['JIRA_DOMAIN', 'JIRA_EMAIL', 'JIRA_API_TOKEN', 'JIRA_PROJECT_KEY', 'CLAUDE_CLI_PATH'];
   const missing = required.filter(key => !process.env[key]);
@@ -25,7 +34,7 @@ export function loadConfig(): Config {
 
   return {
     jira: {
-      domain: process.env.JIRA_DOMAIN!,
+      domain: sanitizeDomain(process.env.JIRA_DOMAIN!),
       email: process.env.JIRA_EMAIL!,
       apiToken: process.env.JIRA_API_TOKEN!,
       projectKey: process.env.JIRA_PROJECT_KEY!,

@@ -29,11 +29,40 @@ async function loadPrompt(
   return prompt.trim();
 }
 
+/**
+ * Ask user for yes/no confirmation
+ */
+async function askConfirm(message: string): Promise<boolean> {
+  process.stdout.write(`${message} (y/n): `);
+
+  const reader = Bun.stdin.stream().getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    const answer = decoder.decode(value).trim().toLowerCase();
+    if (answer === 'y' || answer === 'yes') {
+      reader.releaseLock();
+      return true;
+    } else if (answer === 'n' || answer === 'no') {
+      reader.releaseLock();
+      return false;
+    }
+    process.stdout.write(`Please answer 'y' or 'n': `);
+  }
+
+  return false;
+}
+
 interface CLIArgs {
   figmaUrl: string;
   epicKey?: string;
   extraInstructions?: string;
   promptStyle: "technical" | "pm";
+  skipDecomposition: boolean;
+  confirm: boolean;
 }
 
 function parseArgs(): CLIArgs {
@@ -52,6 +81,8 @@ Options:
   --style, -s <type>   Prompt style: "technical" (default) or "pm"
                        - technical: Includes Technical Considerations section
                        - pm: Focuses on user stories and acceptance criteria
+  --skip-decomposition Skip the task decomposition step (only create story)
+  --confirm            Interactively confirm each subtask before creating in Jira
   --help, -h           Show this help message
 
 Environment variables (set in .env):
@@ -64,6 +95,8 @@ Examples:
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456"
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --style pm
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --skip-decomposition
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --confirm
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -s pm "Focus on accessibility"
     `);
     process.exit(0);
@@ -72,6 +105,8 @@ Examples:
   let figmaUrl: string | undefined;
   let epicKey: string | undefined;
   let promptStyle: "technical" | "pm" = "technical"; // Default to technical
+  let skipDecomposition = false;
+  let confirm = false;
   const extraParts: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -97,6 +132,10 @@ Examples:
       }
       promptStyle = style;
       i++; // Skip next arg
+    } else if (arg === "--skip-decomposition") {
+      skipDecomposition = true;
+    } else if (arg === "--confirm") {
+      confirm = true;
     } else if (!figmaUrl) {
       figmaUrl = arg;
     } else {
@@ -113,6 +152,8 @@ Examples:
     figmaUrl,
     epicKey,
     promptStyle,
+    skipDecomposition,
+    confirm,
     extraInstructions: extraParts.length > 0 ? extraParts.join(" ") : undefined,
   };
 }
@@ -120,7 +161,7 @@ Examples:
 async function main() {
   try {
     // Parse arguments
-    const { figmaUrl, epicKey, extraInstructions, promptStyle } = parseArgs();
+    const { figmaUrl, epicKey, extraInstructions, promptStyle, skipDecomposition, confirm } = parseArgs();
 
     // Load configuration
     console.log("📋 Loading configuration...\n");
@@ -214,6 +255,18 @@ async function main() {
     }
     console.log();
 
+    // Check if we should skip decomposition
+    if (skipDecomposition) {
+      console.log("✅ Story created successfully!\n");
+      console.log("Summary:");
+      console.log(`  Story: ${jiraStory.url}`);
+      if (epicKey) {
+        console.log(`  Epic: ${epicKey}`);
+      }
+      console.log("\n🎉 Done! (Skipped decomposition)");
+      return;
+    }
+
     // Step 2: Run Claude to decompose the story into tasks
     console.log("Step 2: Decomposing story into tasks\n");
 
@@ -261,11 +314,37 @@ async function main() {
     console.log(
       `\n✅ Claude suggested ${subtasksData.subtasks.length} subtasks\n`
     );
-    console.log("📝 Creating subtasks in Jira...\n");
+
+    if (confirm) {
+      console.log("📝 Review and confirm each subtask:\n");
+    } else {
+      console.log("📝 Creating subtasks in Jira...\n");
+    }
 
     // Create each subtask via API
     const createdSubtasks = [];
-    for (const subtask of subtasksData.subtasks) {
+    const skippedSubtasks = [];
+
+    for (let i = 0; i < subtasksData.subtasks.length; i++) {
+      const subtask = subtasksData.subtasks[i];
+      if (!subtask) continue;
+
+      // If confirmation mode is enabled, ask user
+      if (confirm) {
+        console.log(`\n[${i + 1}/${subtasksData.subtasks.length}] ${subtask.summary}`);
+        if (subtask.description) {
+          const descPreview = subtask.description.substring(0, 200);
+          console.log(`   ${descPreview}${subtask.description.length > 200 ? '...' : ''}`);
+        }
+
+        const shouldCreate = await askConfirm(`\nCreate this subtask?`);
+        if (!shouldCreate) {
+          skippedSubtasks.push(subtask.summary);
+          console.log(`   ⏭️  Skipped`);
+          continue;
+        }
+      }
+
       try {
         // Ensure we have a description, use summary as fallback
         const description = subtask.description?.trim() || subtask.summary;
@@ -289,6 +368,9 @@ async function main() {
     console.log("Summary:");
     console.log(`  Story: ${jiraStory.url}`);
     console.log(`  Created: ${createdSubtasks.length} subtasks`);
+    if (skippedSubtasks.length > 0) {
+      console.log(`  Skipped: ${skippedSubtasks.length} subtasks`);
+    }
     if (epicKey) {
       console.log(`  Epic: ${epicKey}`);
     }

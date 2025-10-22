@@ -1,0 +1,19 @@
+Analyze the following Figma design and generate PM-style requirements for a Jira story:
+
+{{figmaUrl}}
+{{epicContext}}
+{{extraInstructions}}
+
+IMPORTANT: Implementation should use the existing design system. DO NOT include specific design notes or styling details from Figma.
+
+Please analyze the Figma design and provide the requirements in the following JSON format with MARKDOWN formatting:
+
+{
+  "summary": "Brief, clear title for the story",
+  "description": "## User Story\\n\\nAs a [user type]\\nI want [goal]\\nSo that [benefit]\\n\\n## Acceptance Criteria\\n\\n- Criterion 1\\n- Criterion 2\\n- Criterion 3\\n\\n## Technical Considerations\\n\\n- Use existing **design system** components\\n- Consider `api-patterns` and existing architecture\\n\\n**Note:** Implementation must use existing design system components and patterns, not Figma-specific styling."
+}
+
+IMPORTANT:
+- Format the description using MARKDOWN (## headers, - bullets, **bold**, `code`)
+- This ensures proper rich formatting in Jira
+- Return ONLY valid JSON, no additional text

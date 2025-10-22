@@ -4,9 +4,29 @@
  * CLI utility to create Jira stories from Figma designs and decompose them into tasks
  */
 
+import { join } from "node:path";
 import { loadConfig } from "./lib/config";
 import { JiraClient } from "./lib/jira";
 import { runClaude } from "./lib/claude";
+
+/**
+ * Load a prompt template from file and replace placeholders
+ */
+async function loadPrompt(
+  filename: string,
+  replacements: Record<string, string>
+): Promise<string> {
+  const promptPath = join(import.meta.dir, "prompts", filename);
+  const promptFile = Bun.file(promptPath);
+  let prompt = await promptFile.text();
+
+  // Replace all placeholders
+  for (const [key, value] of Object.entries(replacements)) {
+    prompt = prompt.replace(new RegExp(`{{${key}}}`, "g"), value);
+  }
+
+  return prompt.trim();
+}
 
 interface CLIArgs {
   figmaUrl: string;
@@ -99,27 +119,13 @@ async function main() {
       console.log(`Extra instructions: ${extraInstructions}`);
     }
 
-    const storyPrompt = `
-Analyze the following Figma design and generate PM-style requirements for a Jira story:
-
-${figmaUrl}
-${epicKey ? `\nThis story will be part of epic: ${epicKey}` : ""}
-${extraInstructions ? `\nAdditional instructions: ${extraInstructions}` : ""}
-
-IMPORTANT: Implementation should use the existing design system. Do NOT include specific design notes or styling details from Figma.
-
-Please analyze the Figma design and provide the requirements in the following JSON format with MARKDOWN formatting:
-
-{
-  "summary": "Brief, clear title for the story",
-  "description": "## User Story\\n\\nAs a [user type]\\nI want [goal]\\nSo that [benefit]\\n\\n## Acceptance Criteria\\n\\n- Criterion 1\\n- Criterion 2\\n- Criterion 3\\n\\n## Technical Considerations\\n\\n- Use existing **design system** components\\n- Consider \`api-patterns\` and existing architecture\\n\\n**Note:** Implementation must use existing design system components and patterns, not Figma-specific styling."
-}
-
-IMPORTANT:
-- Format the description using MARKDOWN (## headers, - bullets, **bold**, \`code\`)
-- This ensures proper rich formatting in Jira
-- Return ONLY valid JSON, no additional text
-    `.trim();
+    const storyPrompt = await loadPrompt("story-generation.txt", {
+      figmaUrl,
+      epicContext: epicKey ? `\nThis story will be part of epic: ${epicKey}` : "",
+      extraInstructions: extraInstructions
+        ? `\nAdditional instructions: ${extraInstructions}`
+        : "",
+    });
 
     const storyResult = await runClaude(
       storyPrompt,
@@ -190,44 +196,10 @@ IMPORTANT:
     // Step 2: Run Claude to decompose the story into tasks
     console.log("Step 2: Decomposing story into tasks\n");
 
-    const decomposePrompt = `
-Decompose the following Jira story into smaller, actionable tasks with detailed descriptions.
-
-Story: ${storyData.summary}
-
-Description:
-${storyData.description}
-
-IMPORTANT: Implementation should use the existing design system. Do NOT include specific design notes, colors, fonts, or styling details from Figma. Focus on functionality and behavior.
-
-Requirements for each task:
-- Focused on a single responsibility
-- Completable within 1-2 days
-- Not too granular (group similar small tasks together)
-- Not too large (break down complex work)
-- MUST include a detailed description formatted in MARKDOWN with:
-  * Use ## for section headers (e.g., "## What needs to be done", "## Acceptance Criteria", "## Technical Considerations")
-  * Use - for bullet points
-  * Use **text** for important terms or emphasis
-  * Use \`code\` for technical terms, function names, or code references
-  * Clear sections explaining functionality (not design specifics)
-
-Return your response ONLY as valid JSON in this exact format (no markdown, no code blocks, no additional text):
-
-{
-  "subtasks": [
-    {
-      "summary": "Brief, actionable task title",
-      "description": "## What needs to be done\\n\\nDetailed explanation...\\n\\n## Acceptance Criteria\\n\\n- Criterion 1\\n- Criterion 2\\n\\n## Technical Considerations\\n\\n- Use existing **design system** components\\n- Consider \`existing-api-method\` patterns"
-    }
-  ]
-}
-
-IMPORTANT:
-- Each task MUST have a comprehensive description
-- Format descriptions using MARKDOWN (headers, bullets, bold, code)
-- This ensures proper formatting in Jira
-    `.trim();
+    const decomposePrompt = await loadPrompt("decomposition.txt", {
+      storySummary: storyData.summary,
+      storyDescription: storyData.description,
+    });
 
     const decomposeResult = await runClaude(
       decomposePrompt,

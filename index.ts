@@ -33,27 +33,49 @@ async function loadPrompt(
  * Ask user for yes/no confirmation
  */
 async function askConfirm(message: string): Promise<boolean> {
-  process.stdout.write(`${message} (y/n): `);
+  process.stdout.write(`${message} (Y/n): `);
 
+  // Read from stdin using readline-like approach
   const reader = Bun.stdin.stream().getReader();
   const decoder = new TextDecoder();
+  let buffer = '';
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
 
-    const answer = decoder.decode(value).trim().toLowerCase();
-    if (answer === 'y' || answer === 'yes') {
-      reader.releaseLock();
-      return true;
-    } else if (answer === 'n' || answer === 'no') {
-      reader.releaseLock();
-      return false;
+      if (done) {
+        reader.releaseLock();
+        return false;
+      }
+
+      // Accumulate input until we get a newline
+      buffer += decoder.decode(value, { stream: true });
+
+      // Check if we have a complete line
+      const newlineIndex = buffer.indexOf('\n');
+      if (newlineIndex !== -1) {
+        const answer = buffer.substring(0, newlineIndex).trim().toLowerCase();
+        buffer = buffer.substring(newlineIndex + 1); // Keep any remaining input
+
+        // Empty input (just Enter) defaults to yes
+        if (answer === '' || answer === 'y' || answer === 'yes') {
+          reader.releaseLock();
+          return true;
+        } else if (answer === 'n' || answer === 'no') {
+          reader.releaseLock();
+          return false;
+        } else {
+          // Invalid input, prompt again
+          process.stdout.write(`Please answer 'y' or 'n' (default: y): `);
+          // Continue the loop to read next input
+        }
+      }
     }
-    process.stdout.write(`Please answer 'y' or 'n': `);
+  } catch (error) {
+    reader.releaseLock();
+    return false;
   }
-
-  return false;
 }
 
 interface CLIArgs {

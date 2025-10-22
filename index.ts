@@ -13,10 +13,11 @@ import { runClaude } from "./lib/claude";
  * Load a prompt template from file and replace placeholders
  */
 async function loadPrompt(
+  style: "technical" | "pm",
   filename: string,
   replacements: Record<string, string>
 ): Promise<string> {
-  const promptPath = join(import.meta.dir, "prompts", filename);
+  const promptPath = join(import.meta.dir, "prompts", style, filename);
   const promptFile = Bun.file(promptPath);
   let prompt = await promptFile.text();
 
@@ -32,6 +33,7 @@ interface CLIArgs {
   figmaUrl: string;
   epicKey?: string;
   extraInstructions?: string;
+  promptStyle: "technical" | "pm";
 }
 
 function parseArgs(): CLIArgs {
@@ -47,6 +49,9 @@ Arguments:
 
 Options:
   --epic, -e <key>     Jira epic key to link the story to (e.g., PROJ-100)
+  --style, -s <type>   Prompt style: "technical" (default) or "pm"
+                       - technical: Includes Technical Considerations section
+                       - pm: Focuses on user stories and acceptance criteria
   --help, -h           Show this help message
 
 Environment variables (set in .env):
@@ -58,13 +63,15 @@ Environment variables (set in .env):
 Examples:
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456"
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 "Focus on accessibility"
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --style pm
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -s pm "Focus on accessibility"
     `);
     process.exit(0);
   }
 
   let figmaUrl: string | undefined;
   let epicKey: string | undefined;
+  let promptStyle: "technical" | "pm" = "technical"; // Default to technical
   const extraParts: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -77,6 +84,18 @@ Examples:
         process.exit(1);
       }
       epicKey = args[i + 1]!; // Non-null assertion safe due to check above
+      i++; // Skip next arg
+    } else if (arg === "--style" || arg === "-s") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --style requires a value");
+        process.exit(1);
+      }
+      const style = args[i + 1]!;
+      if (style !== "technical" && style !== "pm") {
+        console.error('Error: --style must be either "technical" or "pm"');
+        process.exit(1);
+      }
+      promptStyle = style;
       i++; // Skip next arg
     } else if (!figmaUrl) {
       figmaUrl = arg;
@@ -93,6 +112,7 @@ Examples:
   return {
     figmaUrl,
     epicKey,
+    promptStyle,
     extraInstructions: extraParts.length > 0 ? extraParts.join(" ") : undefined,
   };
 }
@@ -100,7 +120,7 @@ Examples:
 async function main() {
   try {
     // Parse arguments
-    const { figmaUrl, epicKey, extraInstructions } = parseArgs();
+    const { figmaUrl, epicKey, extraInstructions, promptStyle } = parseArgs();
 
     // Load configuration
     console.log("📋 Loading configuration...\n");
@@ -112,6 +132,7 @@ async function main() {
     // Step 1: Run Claude to create Jira story from Figma design
     console.log("Step 1: Creating Jira story from Figma design\n");
     console.log(`Figma URL: ${figmaUrl}`);
+    console.log(`Prompt style: ${promptStyle}`);
     if (epicKey) {
       console.log(`Epic: ${epicKey}`);
     }
@@ -119,7 +140,7 @@ async function main() {
       console.log(`Extra instructions: ${extraInstructions}`);
     }
 
-    const storyPrompt = await loadPrompt("story-generation.txt", {
+    const storyPrompt = await loadPrompt(promptStyle, "story-generation.txt", {
       figmaUrl,
       epicContext: epicKey ? `\nThis story will be part of epic: ${epicKey}` : "",
       extraInstructions: extraInstructions
@@ -196,7 +217,7 @@ async function main() {
     // Step 2: Run Claude to decompose the story into tasks
     console.log("Step 2: Decomposing story into tasks\n");
 
-    const decomposePrompt = await loadPrompt("decomposition.txt", {
+    const decomposePrompt = await loadPrompt(promptStyle, "decomposition.txt", {
       storySummary: storyData.summary,
       storyDescription: storyData.description,
     });

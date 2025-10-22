@@ -30,51 +30,49 @@ async function loadPrompt(
 }
 
 /**
- * Ask user for yes/no confirmation
+ * Read a single line from stdin
+ * Returns the line without the newline character
  */
-async function askConfirm(message: string): Promise<boolean> {
-  process.stdout.write(`${message} (Y/n): `);
-
-  // Read from stdin using readline-like approach
-  const reader = Bun.stdin.stream().getReader();
+async function readLine(): Promise<string> {
   const decoder = new TextDecoder();
   let buffer = '';
 
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-
-      if (done) {
-        reader.releaseLock();
-        return false;
-      }
-
-      // Accumulate input until we get a newline
-      buffer += decoder.decode(value, { stream: true });
-
-      // Check if we have a complete line
-      const newlineIndex = buffer.indexOf('\n');
-      if (newlineIndex !== -1) {
-        const answer = buffer.substring(0, newlineIndex).trim().toLowerCase();
-        buffer = buffer.substring(newlineIndex + 1); // Keep any remaining input
-
-        // Empty input (just Enter) defaults to yes
-        if (answer === '' || answer === 'y' || answer === 'yes') {
-          reader.releaseLock();
-          return true;
-        } else if (answer === 'n' || answer === 'no') {
-          reader.releaseLock();
-          return false;
-        } else {
-          // Invalid input, prompt again
-          process.stdout.write(`Please answer 'y' or 'n' (default: y): `);
-          // Continue the loop to read next input
-        }
-      }
+  for await (const chunk of Bun.stdin.stream()) {
+    buffer += decoder.decode(chunk);
+    const newlineIndex = buffer.indexOf('\n');
+    if (newlineIndex !== -1) {
+      return buffer.substring(0, newlineIndex);
     }
-  } catch (error) {
-    reader.releaseLock();
-    return false;
+  }
+
+  return buffer;
+}
+
+/**
+ * Ask user for yes/no confirmation
+ */
+async function askConfirm(message: string): Promise<boolean> {
+  while (true) {
+    process.stdout.write(`${message} (Y/n): `);
+
+    try {
+      const input = await readLine();
+      const answer = input.trim().toLowerCase();
+
+      // Empty input (just Enter) defaults to yes
+      if (answer === '' || answer === 'y' || answer === 'yes') {
+        return true;
+      } else if (answer === 'n' || answer === 'no') {
+        return false;
+      } else {
+        // Invalid input, loop and prompt again
+        process.stdout.write(`Please answer 'y' or 'n' (default: y): `);
+        continue;
+      }
+    } catch (error) {
+      console.error('\nError reading input:', error);
+      return false;
+    }
   }
 }
 

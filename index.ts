@@ -30,25 +30,6 @@ async function loadPrompt(
 }
 
 /**
- * Read a single line from stdin
- * Returns the line without the newline character
- */
-async function readLine(): Promise<string> {
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  for await (const chunk of Bun.stdin.stream()) {
-    buffer += decoder.decode(chunk);
-    const newlineIndex = buffer.indexOf('\n');
-    if (newlineIndex !== -1) {
-      return buffer.substring(0, newlineIndex);
-    }
-  }
-
-  return buffer;
-}
-
-/**
  * Ask user for yes/no confirmation
  */
 async function askConfirm(message: string): Promise<boolean> {
@@ -56,8 +37,17 @@ async function askConfirm(message: string): Promise<boolean> {
     process.stdout.write(`${message} (Y/n): `);
 
     try {
-      const input = await readLine();
-      const answer = input.trim().toLowerCase();
+      // Use Bun's synchronous readline-like approach
+      const proc = Bun.spawn(['bash', '-c', 'read line && echo "$line"'], {
+        stdin: 'inherit',
+        stdout: 'pipe',
+        stderr: 'inherit',
+      });
+
+      const output = await new Response(proc.stdout).text();
+      await proc.exited;
+
+      const answer = output.trim().toLowerCase();
 
       // Empty input (just Enter) defaults to yes
       if (answer === '' || answer === 'y' || answer === 'yes') {

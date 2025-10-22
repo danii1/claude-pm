@@ -2,6 +2,8 @@
  * Configuration management for the CLI
  */
 
+import { join } from 'node:path';
+
 export interface Config {
   jira: {
     domain: string;
@@ -21,7 +23,33 @@ function sanitizeDomain(domain: string): string {
     .replace(/\/+$/, '');         // Remove trailing slashes
 }
 
-export function loadConfig(): Config {
+export async function loadConfig(): Promise<Config> {
+  // Load .env file from the script's directory (not CWD)
+  // This ensures the CLI works when installed globally
+  const scriptDir = import.meta.dir;
+  const projectRoot = join(scriptDir, '..');
+  const envPath = join(projectRoot, '.env');
+
+  // Try to load .env file if it exists
+  try {
+    const envFile = Bun.file(envPath);
+    if (await envFile.exists()) {
+      const envContent = await envFile.text();
+      for (const line of envContent.split('\n')) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          const [key, ...valueParts] = trimmed.split('=');
+          if (key && valueParts.length > 0) {
+            const value = valueParts.join('=').trim();
+            process.env[key.trim()] = value;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore errors - .env is optional if env vars are set another way
+  }
+
   const required = ['JIRA_DOMAIN', 'JIRA_EMAIL', 'JIRA_API_TOKEN', 'JIRA_PROJECT_KEY', 'CLAUDE_CLI_PATH'];
   const missing = required.filter(key => !process.env[key]);
 

@@ -4,9 +4,9 @@
  * CLI utility to create Jira stories from Figma designs and decompose them into tasks
  */
 
-import { loadConfig } from './lib/config';
-import { JiraClient } from './lib/jira';
-import { runClaude } from './lib/claude';
+import { loadConfig } from "./lib/config";
+import { JiraClient } from "./lib/jira";
+import { runClaude } from "./lib/claude";
 
 interface CLIArgs {
   figmaUrl: string;
@@ -17,7 +17,7 @@ interface CLIArgs {
 function parseArgs(): CLIArgs {
   const args = Bun.argv.slice(2);
 
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
 Usage: bun run index.ts <figma-url> [options] [extra-instructions]
 
@@ -51,9 +51,9 @@ Examples:
     const arg = args[i];
     if (!arg) continue; // Skip undefined args (shouldn't happen but satisfies TS)
 
-    if (arg === '--epic' || arg === '-e') {
+    if (arg === "--epic" || arg === "-e") {
       if (i + 1 >= args.length) {
-        console.error('Error: --epic requires a value');
+        console.error("Error: --epic requires a value");
         process.exit(1);
       }
       epicKey = args[i + 1]!; // Non-null assertion safe due to check above
@@ -66,14 +66,14 @@ Examples:
   }
 
   if (!figmaUrl) {
-    console.error('Error: Figma URL is required');
+    console.error("Error: Figma URL is required");
     process.exit(1);
   }
 
   return {
     figmaUrl,
     epicKey,
-    extraInstructions: extraParts.length > 0 ? extraParts.join(' ') : undefined,
+    extraInstructions: extraParts.length > 0 ? extraParts.join(" ") : undefined,
   };
 }
 
@@ -83,14 +83,14 @@ async function main() {
     const { figmaUrl, epicKey, extraInstructions } = parseArgs();
 
     // Load configuration
-    console.log('📋 Loading configuration...\n');
+    console.log("📋 Loading configuration...\n");
     const config = loadConfig();
 
     // Initialize Jira client
     const jiraClient = new JiraClient(config.jira);
 
     // Step 1: Run Claude to create Jira story from Figma design
-    console.log('Step 1: Creating Jira story from Figma design\n');
+    console.log("Step 1: Creating Jira story from Figma design\n");
     console.log(`Figma URL: ${figmaUrl}`);
     if (epicKey) {
       console.log(`Epic: ${epicKey}`);
@@ -103,27 +103,31 @@ async function main() {
 Analyze the following Figma design and generate PM-style requirements for a Jira story:
 
 ${figmaUrl}
-${epicKey ? `\nThis story will be part of epic: ${epicKey}` : ''}
-${extraInstructions ? `\nAdditional instructions: ${extraInstructions}` : ''}
+${epicKey ? `\nThis story will be part of epic: ${epicKey}` : ""}
+${extraInstructions ? `\nAdditional instructions: ${extraInstructions}` : ""}
 
 Please analyze the Figma design and provide the requirements in the following JSON format:
 
 {
   "summary": "Brief, clear title for the story",
-  "description": "Detailed description including:\\n- User story (As a... I want... So that...)\\n- Acceptance criteria\\n- Technical considerations\\n- Design notes from the Figma"
+  "description": "Detailed description including:\\n- User story (As a... I want... So that...)\\n- Acceptance criteria\\n- Technical considerations"
 }
 
 Return ONLY valid JSON, no additional text.
     `.trim();
 
-    const storyResult = await runClaude(storyPrompt, {
-      maxTurns: 100,
-      skipPermissions: true,
-      planMode: true,
-    }, config.claudeCliPath);
+    const storyResult = await runClaude(
+      storyPrompt,
+      {
+        maxTurns: 100,
+        skipPermissions: true,
+        planMode: true,
+      },
+      config.claudeCliPath
+    );
 
     if (storyResult.exitCode !== 0) {
-      console.error('❌ Failed to analyze Figma design');
+      console.error("❌ Failed to analyze Figma design");
       console.error(storyResult.stderr);
       process.exit(1);
     }
@@ -139,16 +143,18 @@ Return ONLY valid JSON, no additional text.
       storyData = JSON.parse(jsonText);
 
       if (!storyData.summary || !storyData.description) {
-        throw new Error('Missing required fields: summary and description');
+        throw new Error("Missing required fields: summary and description");
       }
     } catch (error) {
-      console.error('\n❌ Failed to parse story requirements from Claude output');
-      console.error('Error:', error instanceof Error ? error.message : error);
-      console.error('Output:', storyResult.stdout);
+      console.error(
+        "\n❌ Failed to parse story requirements from Claude output"
+      );
+      console.error("Error:", error instanceof Error ? error.message : error);
+      console.error("Output:", storyResult.stdout);
       process.exit(1);
     }
 
-    console.log('\n📝 Creating Jira story...');
+    console.log("\n📝 Creating Jira story...");
     console.log(`   Title: ${storyData.summary}`);
 
     // Create the Jira story via API
@@ -166,28 +172,37 @@ Return ONLY valid JSON, no additional text.
         await jiraClient.linkToEpic(jiraStory.key, epicKey);
         console.log(`✅ Story linked to epic ${epicKey}`);
       } catch (error) {
-        console.error(`⚠️  Warning: Failed to link to epic: ${error instanceof Error ? error.message : error}`);
-        console.log('Continuing with task decomposition...');
+        console.error(
+          `⚠️  Warning: Failed to link to epic: ${
+            error instanceof Error ? error.message : error
+          }`
+        );
+        console.log("Continuing with task decomposition...");
       }
     }
     console.log();
 
     // Step 2: Run Claude to decompose the story into tasks
-    console.log('Step 2: Decomposing story into tasks\n');
+    console.log("Step 2: Decomposing story into tasks\n");
 
     const decomposePrompt = `
-Decompose the following Jira story into smaller, actionable subtasks.
+Decompose the following Jira story into smaller, actionable tasks with detailed descriptions.
 
 Story: ${storyData.summary}
 
 Description:
 ${storyData.description}
 
-Requirements:
-- Tasks should be focused on a single responsibility
+Requirements for each task:
+- Focused on a single responsibility
 - Completable within 1-2 days
 - Not too granular (group similar small tasks together)
 - Not too large (break down complex work)
+- MUST include a detailed description with:
+  * What needs to be done
+  * Acceptance criteria or definition of done
+  * Any technical considerations or dependencies
+  * Implementation notes if applicable
 
 Return your response ONLY as valid JSON in this exact format (no markdown, no code blocks, no additional text):
 
@@ -195,20 +210,26 @@ Return your response ONLY as valid JSON in this exact format (no markdown, no co
   "subtasks": [
     {
       "summary": "Brief, actionable task title",
-      "description": "Optional detailed description"
+      "description": "Detailed description with what needs to be done, acceptance criteria, technical considerations, and implementation notes"
     }
   ]
 }
+
+IMPORTANT: Each task MUST have a comprehensive description. Do not leave descriptions empty.
     `.trim();
 
-    const decomposeResult = await runClaude(decomposePrompt, {
-      maxTurns: 50,
-      skipPermissions: true,
-      planMode: false,
-    }, config.claudeCliPath);
+    const decomposeResult = await runClaude(
+      decomposePrompt,
+      {
+        maxTurns: 100,
+        skipPermissions: true,
+        planMode: false,
+      },
+      config.claudeCliPath
+    );
 
     if (decomposeResult.exitCode !== 0) {
-      console.error('❌ Failed to decompose story');
+      console.error("❌ Failed to decompose story");
       console.error(decomposeResult.stderr);
       process.exit(1);
     }
@@ -224,46 +245,55 @@ Return your response ONLY as valid JSON in this exact format (no markdown, no co
       subtasksData = JSON.parse(jsonText);
 
       if (!subtasksData.subtasks || !Array.isArray(subtasksData.subtasks)) {
-        throw new Error('Expected subtasks array in response');
+        throw new Error("Expected subtasks array in response");
       }
     } catch (error) {
-      console.error('\n❌ Failed to parse subtasks from Claude output');
-      console.error('Error:', error instanceof Error ? error.message : error);
-      console.error('Output:', decomposeResult.stdout);
+      console.error("\n❌ Failed to parse subtasks from Claude output");
+      console.error("Error:", error instanceof Error ? error.message : error);
+      console.error("Output:", decomposeResult.stdout);
       process.exit(1);
     }
 
-    console.log(`\n✅ Claude suggested ${subtasksData.subtasks.length} subtasks\n`);
-    console.log('📝 Creating subtasks in Jira...\n');
+    console.log(
+      `\n✅ Claude suggested ${subtasksData.subtasks.length} subtasks\n`
+    );
+    console.log("📝 Creating subtasks in Jira...\n");
 
     // Create each subtask via API
     const createdSubtasks = [];
     for (const subtask of subtasksData.subtasks) {
       try {
+        // Ensure we have a description, use summary as fallback
+        const description = subtask.description?.trim() || subtask.summary;
+
         const created = await jiraClient.createSubtask(
           jiraStory.key,
           subtask.summary,
-          subtask.description || undefined
+          description
         );
         createdSubtasks.push(created);
         console.log(`   ✅ ${created.key}: ${subtask.summary}`);
       } catch (error) {
         console.error(`   ⚠️  Failed to create subtask: ${subtask.summary}`);
-        console.error(`      Error: ${error instanceof Error ? error.message : error}`);
+        console.error(
+          `      Error: ${error instanceof Error ? error.message : error}`
+        );
       }
     }
 
-    console.log('\n✅ Story decomposed into tasks successfully!\n');
-    console.log('Summary:');
+    console.log("\n✅ Story decomposed into tasks successfully!\n");
+    console.log("Summary:");
     console.log(`  Story: ${jiraStory.url}`);
     console.log(`  Created: ${createdSubtasks.length} subtasks`);
     if (epicKey) {
       console.log(`  Epic: ${epicKey}`);
     }
-    console.log('\n🎉 Done!');
-
+    console.log("\n🎉 Done!");
   } catch (error) {
-    console.error('\n❌ Error:', error instanceof Error ? error.message : error);
+    console.error(
+      "\n❌ Error:",
+      error instanceof Error ? error.message : error
+    );
     process.exit(1);
   }
 }

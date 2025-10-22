@@ -3,6 +3,7 @@
  */
 
 import type { Config } from './config';
+import { JiraFormatter } from './jira-formatter';
 
 export interface JiraStory {
   key: string;
@@ -12,6 +13,15 @@ export interface JiraStory {
 
 export interface JiraTask {
   key: string;
+  url: string;
+}
+
+export interface JiraIssueDetails {
+  key: string;
+  summary: string;
+  description: string;
+  issueType: string;
+  status: string;
   url: string;
 }
 
@@ -55,27 +65,16 @@ export class JiraClient {
   }
 
   async createStory(summary: string, description: string): Promise<JiraStory> {
+    // Convert description to ADF format
+    const descriptionADF = JiraFormatter.textToADF(description);
+
     const issueData = {
       fields: {
         project: {
           key: this.config.projectKey,
         },
         summary,
-        description: {
-          type: 'doc',
-          version: 1,
-          content: [
-            {
-              type: 'paragraph',
-              content: [
-                {
-                  type: 'text',
-                  text: description,
-                },
-              ],
-            },
-          ],
-        },
+        description: descriptionADF,
         issuetype: {
           name: 'Story',
         },
@@ -100,6 +99,11 @@ export class JiraClient {
     summary: string,
     description?: string
   ): Promise<JiraTask> {
+    // Convert description to ADF format if provided
+    const descriptionADF = description
+      ? JiraFormatter.textToADF(description)
+      : undefined;
+
     const issueData = {
       fields: {
         project: {
@@ -109,23 +113,7 @@ export class JiraClient {
           key: parentKey,
         },
         summary,
-        description: description
-          ? {
-              type: 'doc',
-              version: 1,
-              content: [
-                {
-                  type: 'paragraph',
-                  content: [
-                    {
-                      type: 'text',
-                      text: description,
-                    },
-                  ],
-                },
-              ],
-            }
-          : undefined,
+        description: descriptionADF,
         issuetype: {
           name: 'Subtask',
         },
@@ -175,5 +163,40 @@ export class JiraClient {
         },
       }
     );
+  }
+
+  async getIssue(issueKey: string): Promise<JiraIssueDetails> {
+    const result = await this.request<any>(
+      `/issue/${issueKey}?fields=summary,description,issuetype,status`
+    );
+
+    // Extract text from Jira's ADF (Atlassian Document Format) description
+    const extractText = (content: any): string => {
+      if (!content) return '';
+      if (typeof content === 'string') return content;
+      if (Array.isArray(content)) {
+        return content.map(extractText).join(' ');
+      }
+      if (content.type === 'text') {
+        return content.text || '';
+      }
+      if (content.content) {
+        return extractText(content.content);
+      }
+      return '';
+    };
+
+    const description = result.fields.description
+      ? extractText(result.fields.description)
+      : '';
+
+    return {
+      key: result.key,
+      summary: result.fields.summary,
+      description,
+      issueType: result.fields.issuetype.name,
+      status: result.fields.status.name,
+      url: `https://${this.config.domain}/browse/${result.key}`,
+    };
   }
 }

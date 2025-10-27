@@ -6,6 +6,7 @@ export interface ClaudeOptions {
   maxTurns: number;
   skipPermissions?: boolean;
   planMode?: boolean;
+  model?: string;
 }
 
 export interface ClaudeResult {
@@ -27,6 +28,10 @@ export async function runClaude(
 
   if (options.skipPermissions) {
     args.push('--dangerously-skip-permissions');
+  }
+
+  if (options.model) {
+    args.push('--model', options.model);
   }
 
   args.push('--max-turns', options.maxTurns.toString());

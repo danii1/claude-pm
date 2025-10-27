@@ -73,6 +73,7 @@ interface CLIArgs {
   promptStyle: "technical" | "pm";
   decompose: boolean;
   confirm: boolean;
+  model?: string;
 }
 
 function parseArgs(): CLIArgs {
@@ -94,6 +95,7 @@ Options:
   --style, -s <type>   Prompt style: "pm" (default) or "technical"
                        - pm: Focuses on user stories and acceptance criteria
                        - technical: Includes Technical Considerations section
+  --model, -m <model>  Claude model to use (e.g., "sonnet", "opus", or full model name)
   --decompose          Decompose the story into subtasks (default: off)
   --confirm            Interactively confirm each subtask before creating in Jira
   --help, -h           Show this help message
@@ -111,6 +113,7 @@ Examples:
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -c "Focus on accessibility"
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --style technical
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --model opus
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --decompose
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --decompose --confirm
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -c "Focus on accessibility"
@@ -124,6 +127,7 @@ Examples:
   let promptStyle: "technical" | "pm" = "pm"; // Default to pm
   let decompose = false; // Default to NOT decomposing
   let confirm = false;
+  let model: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -155,6 +159,13 @@ Examples:
       }
       promptStyle = style;
       i++; // Skip next arg
+    } else if (arg === "--model" || arg === "-m") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --model requires a value");
+        process.exit(1);
+      }
+      model = args[i + 1]!; // Non-null assertion safe due to check above
+      i++; // Skip next arg
     } else if (arg === "--decompose") {
       decompose = true;
     } else if (arg === "--confirm") {
@@ -179,6 +190,7 @@ Examples:
     promptStyle,
     decompose,
     confirm,
+    model,
     extraInstructions: customInstructions,
   };
 }
@@ -186,7 +198,7 @@ Examples:
 async function main() {
   try {
     // Parse arguments
-    const { figmaUrl, epicKey, extraInstructions, promptStyle, decompose, confirm } = parseArgs();
+    const { figmaUrl, epicKey, extraInstructions, promptStyle, decompose, confirm, model } = parseArgs();
 
     // Load configuration
     console.log("📋 Loading configuration...\n");
@@ -199,6 +211,9 @@ async function main() {
     console.log("Step 1: Creating Jira story from Figma design\n");
     console.log(`Figma URL: ${figmaUrl}`);
     console.log(`Prompt style: ${promptStyle}`);
+    if (model) {
+      console.log(`Model: ${model}`);
+    }
     if (epicKey) {
       console.log(`Epic: ${epicKey}`);
     }
@@ -220,6 +235,7 @@ async function main() {
         maxTurns: 100,
         skipPermissions: true,
         planMode: true,
+        model,
       },
       config.claudeCliPath
     );
@@ -306,6 +322,7 @@ async function main() {
         maxTurns: 100,
         skipPermissions: true,
         planMode: false,
+        model,
       },
       config.claudeCliPath
     );

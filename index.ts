@@ -13,11 +13,12 @@ import { runClaude } from "./lib/claude";
  * Load a prompt template from file and replace placeholders
  */
 async function loadPrompt(
+  sourceType: SourceType,
   style: "technical" | "pm",
   filename: string,
   replacements: Record<string, string>
 ): Promise<string> {
-  const promptPath = join(import.meta.dir, "prompts", style, filename);
+  const promptPath = join(import.meta.dir, "prompts", sourceType, style, filename);
   const promptFile = Bun.file(promptPath);
   let prompt = await promptFile.text();
 
@@ -66,8 +67,15 @@ async function askConfirm(message: string): Promise<boolean> {
   }
 }
 
+type SourceType = "figma" | "log";
+
+interface SourceInput {
+  type: SourceType;
+  content: string;
+}
+
 interface CLIArgs {
-  figmaUrl: string;
+  source: SourceInput;
   epicKey?: string;
   extraInstructions?: string;
   promptStyle: "technical" | "pm";
@@ -81,11 +89,13 @@ function parseArgs(): CLIArgs {
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
-Usage: claude-pm <figma-url> [options]
+Usage: claude-pm --figma <url> [options]
+       claude-pm --log <text> [options]
        claude-pm --web [--port <port>]
 
-Arguments:
-  figma-url            Figma design node URL (required)
+Source (one required):
+  --figma <url>        Figma design node URL to analyze
+  --log <text>         Error log or bug report text to analyze
 
 Options:
   --web                Start web interface server
@@ -107,21 +117,25 @@ Environment variables (set in .env):
   JIRA_PROJECT_KEY    Your Jira project key (e.g., PROJ)
 
 Examples:
+  # Web interface
   claude-pm --web                    # Start web interface on port 3000
   claude-pm --web --port 8080        # Start web interface on custom port
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456"
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -c "Focus on accessibility"
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --style technical
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --model opus
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --decompose
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --decompose --confirm
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -c "Focus on accessibility"
+
+  # Figma designs
+  claude-pm --figma "https://www.figma.com/design/abc/file?node-id=123-456"
+  claude-pm --figma "https://..." --epic PROJ-100
+  claude-pm --figma "https://..." -c "Focus on accessibility"
+  claude-pm --figma "https://..." --style technical --decompose
+
+  # Error logs
+  claude-pm --log "Error: Cannot read property 'id' of undefined at line 42"
+  claude-pm --log "$(cat error.log)" --epic PROJ-200
+  claude-pm --log "Stack trace..." --style technical --model opus
     `);
     process.exit(0);
   }
 
-  let figmaUrl: string | undefined;
+  let source: SourceInput | undefined;
   let epicKey: string | undefined;
   let customInstructions: string | undefined;
   let promptStyle: "technical" | "pm" = "pm"; // Default to pm
@@ -133,7 +147,35 @@ Examples:
     const arg = args[i];
     if (!arg) continue; // Skip undefined args (shouldn't happen but satisfies TS)
 
-    if (arg === "--epic" || arg === "-e") {
+    if (arg === "--figma") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --figma requires a URL");
+        process.exit(1);
+      }
+      if (source) {
+        console.error("Error: Cannot specify multiple source types (--figma, --log)");
+        process.exit(1);
+      }
+      source = {
+        type: "figma",
+        content: args[i + 1]!,
+      };
+      i++; // Skip next arg
+    } else if (arg === "--log") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --log requires text content");
+        process.exit(1);
+      }
+      if (source) {
+        console.error("Error: Cannot specify multiple source types (--figma, --log)");
+        process.exit(1);
+      }
+      source = {
+        type: "log",
+        content: args[i + 1]!,
+      };
+      i++; // Skip next arg
+    } else if (arg === "--epic" || arg === "-e") {
       if (i + 1 >= args.length) {
         console.error("Error: --epic requires a value");
         process.exit(1);
@@ -170,8 +212,6 @@ Examples:
       decompose = true;
     } else if (arg === "--confirm") {
       confirm = true;
-    } else if (!figmaUrl) {
-      figmaUrl = arg;
     } else {
       console.error(`Error: Unknown argument "${arg}"`);
       console.error('Use --help to see available options');
@@ -179,13 +219,13 @@ Examples:
     }
   }
 
-  if (!figmaUrl) {
-    console.error("Error: Figma URL is required");
+  if (!source) {
+    console.error("Error: Source is required (use --figma or --log)");
     process.exit(1);
   }
 
   return {
-    figmaUrl,
+    source,
     epicKey,
     promptStyle,
     decompose,
@@ -198,7 +238,7 @@ Examples:
 async function main() {
   try {
     // Parse arguments
-    const { figmaUrl, epicKey, extraInstructions, promptStyle, decompose, confirm, model } = parseArgs();
+    const { source, epicKey, extraInstructions, promptStyle, decompose, confirm, model } = parseArgs();
 
     // Load configuration
     console.log("📋 Loading configuration...\n");
@@ -207,9 +247,19 @@ async function main() {
     // Initialize Jira client
     const jiraClient = new JiraClient(config.jira);
 
-    // Step 1: Run Claude to create Jira story from Figma design
-    console.log("Step 1: Creating Jira story from Figma design\n");
-    console.log(`Figma URL: ${figmaUrl}`);
+    // Step 1: Run Claude to create Jira story from source
+    const sourceTypeLabel = source.type === "figma" ? "Figma design" : "error log";
+    console.log(`Step 1: Creating Jira story from ${sourceTypeLabel}\n`);
+    console.log(`Source type: ${source.type}`);
+    if (source.type === "figma") {
+      console.log(`Figma URL: ${source.content}`);
+    } else {
+      // Show first 100 chars of log content
+      const preview = source.content.length > 100
+        ? source.content.substring(0, 100) + "..."
+        : source.content;
+      console.log(`Log preview: ${preview}`);
+    }
     console.log(`Prompt style: ${promptStyle}`);
     if (model) {
       console.log(`Model: ${model}`);
@@ -221,13 +271,21 @@ async function main() {
       console.log(`Custom instructions: ${extraInstructions}`);
     }
 
-    const storyPrompt = await loadPrompt(promptStyle, "story-generation.txt", {
-      figmaUrl,
+    // Prepare replacements based on source type
+    const replacements: Record<string, string> = {
       epicContext: epicKey ? `\nThis story will be part of epic: ${epicKey}` : "",
       extraInstructions: extraInstructions
         ? `\nAdditional instructions: ${extraInstructions}`
         : "",
-    });
+    };
+
+    if (source.type === "figma") {
+      replacements.figmaUrl = source.content;
+    } else if (source.type === "log") {
+      replacements.logContent = source.content;
+    }
+
+    const storyPrompt = await loadPrompt(source.type, promptStyle, "story-generation.txt", replacements);
 
     const storyResult = await runClaude(
       storyPrompt,
@@ -311,7 +369,7 @@ async function main() {
     // Step 2: Run Claude to decompose the story into tasks
     console.log("Step 2: Decomposing story into tasks\n");
 
-    const decomposePrompt = await loadPrompt(promptStyle, "decomposition.txt", {
+    const decomposePrompt = await loadPrompt(source.type, promptStyle, "decomposition.txt", {
       storySummary: storyData.summary,
       storyDescription: storyData.description,
     });

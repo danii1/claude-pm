@@ -71,7 +71,7 @@ interface CLIArgs {
   epicKey?: string;
   extraInstructions?: string;
   promptStyle: "technical" | "pm";
-  skipDecomposition: boolean;
+  decompose: boolean;
   confirm: boolean;
 }
 
@@ -94,7 +94,7 @@ Options:
   --style, -s <type>   Prompt style: "technical" (default) or "pm"
                        - technical: Includes Technical Considerations section
                        - pm: Focuses on user stories and acceptance criteria
-  --skip-decomposition Skip the task decomposition step (only create story)
+  --decompose          Decompose the story into subtasks (default: off)
   --confirm            Interactively confirm each subtask before creating in Jira
   --help, -h           Show this help message
 
@@ -111,8 +111,8 @@ Examples:
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -c "Focus on accessibility"
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --style pm
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --skip-decomposition
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --confirm
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --decompose
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --decompose --confirm
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -s pm -c "Focus on accessibility"
     `);
     process.exit(0);
@@ -122,7 +122,7 @@ Examples:
   let epicKey: string | undefined;
   let customInstructions: string | undefined;
   let promptStyle: "technical" | "pm" = "technical"; // Default to technical
-  let skipDecomposition = false;
+  let decompose = false; // Default to NOT decomposing
   let confirm = false;
 
   for (let i = 0; i < args.length; i++) {
@@ -155,8 +155,8 @@ Examples:
       }
       promptStyle = style;
       i++; // Skip next arg
-    } else if (arg === "--skip-decomposition") {
-      skipDecomposition = true;
+    } else if (arg === "--decompose") {
+      decompose = true;
     } else if (arg === "--confirm") {
       confirm = true;
     } else if (!figmaUrl) {
@@ -177,7 +177,7 @@ Examples:
     figmaUrl,
     epicKey,
     promptStyle,
-    skipDecomposition,
+    decompose,
     confirm,
     extraInstructions: customInstructions,
   };
@@ -186,7 +186,7 @@ Examples:
 async function main() {
   try {
     // Parse arguments
-    const { figmaUrl, epicKey, extraInstructions, promptStyle, skipDecomposition, confirm } = parseArgs();
+    const { figmaUrl, epicKey, extraInstructions, promptStyle, decompose, confirm } = parseArgs();
 
     // Load configuration
     console.log("📋 Loading configuration...\n");
@@ -280,15 +280,15 @@ async function main() {
     }
     console.log();
 
-    // Check if we should skip decomposition
-    if (skipDecomposition) {
+    // Check if we should decompose into subtasks
+    if (!decompose) {
       console.log("✅ Story created successfully!\n");
       console.log("Summary:");
       console.log(`  Story: ${jiraStory.url}`);
       if (epicKey) {
         console.log(`  Epic: ${epicKey}`);
       }
-      console.log("\n🎉 Done! (Skipped decomposition)");
+      console.log("\n🎉 Done!");
       return;
     }
 

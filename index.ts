@@ -91,9 +91,9 @@ Options:
   --port <number>      Port for web server (default: 3000, only with --web)
   --epic, -e <key>     Jira epic key to link the story to (e.g., PROJ-100)
   --custom, -c <text>  Additional custom instructions for the requirements
-  --style, -s <type>   Prompt style: "technical" (default) or "pm"
-                       - technical: Includes Technical Considerations section
+  --style, -s <type>   Prompt style: "pm" (default) or "technical"
                        - pm: Focuses on user stories and acceptance criteria
+                       - technical: Includes Technical Considerations section
   --decompose          Decompose the story into subtasks (default: off)
   --confirm            Interactively confirm each subtask before creating in Jira
   --help, -h           Show this help message
@@ -110,10 +110,10 @@ Examples:
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456"
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -c "Focus on accessibility"
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --style pm
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --style technical
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --decompose
   claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" --decompose --confirm
-  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -s pm -c "Focus on accessibility"
+  claude-pm "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 -c "Focus on accessibility"
     `);
     process.exit(0);
   }
@@ -121,7 +121,7 @@ Examples:
   let figmaUrl: string | undefined;
   let epicKey: string | undefined;
   let customInstructions: string | undefined;
-  let promptStyle: "technical" | "pm" = "technical"; // Default to technical
+  let promptStyle: "technical" | "pm" = "pm"; // Default to pm
   let decompose = false; // Default to NOT decomposing
   let confirm = false;
 

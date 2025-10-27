@@ -7,13 +7,7 @@ Description:
 
 IMPORTANT:
 - Implementation should use the existing design system. DO NOT include specific design notes, colors, fonts, or styling details from Figma. Focus on functionality and behavior.
-- BEFORE creating subtasks, explore the current codebase to identify existing code that can be reused:
-  * Check for existing API endpoints and client methods that could be used or extended
-  * Look for similar UI components that can be adapted or reused
-  * Review existing screens/pages for similar patterns and implementations
-  * Search for Redux actions, reducers, selectors that might be relevant or reusable
-  * Identify utility functions, hooks, and helpers that could be leveraged
-- Suggest reusing or adapting existing code rather than building everything from scratch, let Claude to explore itself, don't include your findings into a task
+- Suggest reusing or adapting existing code rather than building everything from scratch
 
 Requirements for each task:
 - Focused on a single responsibility

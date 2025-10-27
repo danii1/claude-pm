@@ -6,13 +6,7 @@ Analyze the following Figma design and generate PM-style requirements for a Jira
 
 IMPORTANT:
 - Implementation should use the existing design system. DO NOT include specific design notes or styling details from Figma.
-- BEFORE creating requirements, explore the current codebase to identify existing code that can be reused:
-  * Check for existing API endpoints and client methods
-  * Look for similar UI components that can be adapted
-  * Review existing screens/pages for similar patterns
-  * Search for Redux actions, reducers, selectors that might be relevant
-  * Identify utility functions that could be leveraged
-- Suggest reusing or adapting existing code rather than building everything from scratch, let Claude to explore itself, don't include your findings into a task
+- Suggest reusing or adapting existing code rather than building everything from scratch.
 
 Please analyze the Figma design and provide the requirements in the following JSON format with MARKDOWN formatting:
 

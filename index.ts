@@ -67,7 +67,7 @@ async function askConfirm(message: string): Promise<boolean> {
   }
 }
 
-type SourceType = "figma" | "log";
+type SourceType = "figma" | "log" | "prompt";
 
 interface SourceInput {
   type: SourceType;
@@ -91,11 +91,13 @@ function parseArgs(): CLIArgs {
     console.log(`
 Usage: claude-pm --figma <url> [options]
        claude-pm --log <text> [options]
+       claude-pm --prompt <text> [options]
        claude-pm --web [--port <port>]
 
 Source (one required):
   --figma <url>        Figma design node URL to analyze
   --log <text>         Error log or bug report text to analyze
+  --prompt <text>      Free-form text describing requirements or features
 
 Options:
   --web                Start web interface server
@@ -131,6 +133,11 @@ Examples:
   claude-pm --log "Error: Cannot read property 'id' of undefined at line 42"
   claude-pm --log "$(cat error.log)" --epic PROJ-200
   claude-pm --log "Stack trace..." --style technical --model opus
+
+  # Free-form prompts
+  claude-pm --prompt "Add user profile settings page with theme preferences"
+  claude-pm --prompt "$(cat requirements.txt)" --epic PROJ-300
+  claude-pm --prompt "Implement OAuth login" --style technical --decompose
     `);
     process.exit(0);
   }
@@ -153,7 +160,7 @@ Examples:
         process.exit(1);
       }
       if (source) {
-        console.error("Error: Cannot specify multiple source types (--figma, --log)");
+        console.error("Error: Cannot specify multiple source types (--figma, --log, --prompt)");
         process.exit(1);
       }
       source = {
@@ -167,11 +174,25 @@ Examples:
         process.exit(1);
       }
       if (source) {
-        console.error("Error: Cannot specify multiple source types (--figma, --log)");
+        console.error("Error: Cannot specify multiple source types (--figma, --log, --prompt)");
         process.exit(1);
       }
       source = {
         type: "log",
+        content: args[i + 1]!,
+      };
+      i++; // Skip next arg
+    } else if (arg === "--prompt") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --prompt requires text content");
+        process.exit(1);
+      }
+      if (source) {
+        console.error("Error: Cannot specify multiple source types (--figma, --log, --prompt)");
+        process.exit(1);
+      }
+      source = {
+        type: "prompt",
         content: args[i + 1]!,
       };
       i++; // Skip next arg
@@ -220,7 +241,7 @@ Examples:
   }
 
   if (!source) {
-    console.error("Error: Source is required (use --figma or --log)");
+    console.error("Error: Source is required (use --figma, --log, or --prompt)");
     process.exit(1);
   }
 
@@ -248,17 +269,21 @@ async function main() {
     const jiraClient = new JiraClient(config.jira);
 
     // Step 1: Run Claude to create Jira story from source
-    const sourceTypeLabel = source.type === "figma" ? "Figma design" : "error log";
+    const sourceTypeLabel =
+      source.type === "figma" ? "Figma design" :
+      source.type === "log" ? "error log" :
+      "free-form prompt";
     console.log(`Step 1: Creating Jira story from ${sourceTypeLabel}\n`);
     console.log(`Source type: ${source.type}`);
     if (source.type === "figma") {
       console.log(`Figma URL: ${source.content}`);
     } else {
-      // Show first 100 chars of log content
+      // Show first 100 chars of content
       const preview = source.content.length > 100
         ? source.content.substring(0, 100) + "..."
         : source.content;
-      console.log(`Log preview: ${preview}`);
+      const label = source.type === "log" ? "Log preview" : "Prompt preview";
+      console.log(`${label}: ${preview}`);
     }
     console.log(`Prompt style: ${promptStyle}`);
     if (model) {
@@ -283,6 +308,8 @@ async function main() {
       replacements.figmaUrl = source.content;
     } else if (source.type === "log") {
       replacements.logContent = source.content;
+    } else if (source.type === "prompt") {
+      replacements.promptContent = source.content;
     }
 
     const storyPrompt = await loadPrompt(source.type, promptStyle, "story-generation.txt", replacements);

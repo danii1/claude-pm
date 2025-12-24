@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { loadConfig } from "./lib/config";
 import { JiraClient } from "./lib/jira";
 import { runClaude } from "./lib/claude";
+import { runInteractiveMode } from "./lib/interactive";
 
 /**
  * Load a prompt template from file and replace placeholders
@@ -85,23 +86,32 @@ interface CLIArgs {
   issueType: string;
 }
 
-function parseArgs(): CLIArgs {
+function parseArgs(): CLIArgs | null {
   const args = Bun.argv.slice(2);
+
+  // Check for interactive mode early
+  if (args.includes("--interactive")) {
+    return null; // Signal to use interactive mode
+  }
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
 Usage: claude-pm --figma <url> [options]
        claude-pm --log <text> [options]
        claude-pm --prompt <text> [options]
+       claude-pm --interactive
        claude-pm --web [--port <port>]
 
-Source (one required):
+Modes:
+  --interactive        Interactive mode - step-by-step task creation (Terminal UI)
+  --web                Start web interface server
+
+Source (one required for non-interactive mode):
   --figma <url>        Figma design node URL to analyze
   --log <text>         Error log or bug report text to analyze
   --prompt <text>      Free-form text describing requirements or features
 
 Options:
-  --web                Start web interface server
   --port <number>      Port for web server (default: 3000, only with --web)
   --epic, -e <key>     Jira epic key to link the story to (e.g., PROJ-100)
   --type, -t <type>    Jira issue type (default: "Story")
@@ -122,6 +132,9 @@ Environment variables (set in .env):
   JIRA_PROJECT_KEY    Your Jira project key (e.g., PROJ)
 
 Examples:
+  # Interactive mode (Terminal UI)
+  claude-pm --interactive            # Step-by-step interactive task creation
+
   # Web interface
   claude-pm --web                    # Start web interface on port 3000
   claude-pm --web --port 8080        # Start web interface on custom port
@@ -271,8 +284,57 @@ Examples:
 
 async function main() {
   try {
-    // Parse arguments
-    const { source, epicKey, extraInstructions, promptStyle, decompose, confirm, model, issueType } = parseArgs();
+    // Parse arguments - null means interactive mode
+    const parsedArgs = parseArgs();
+
+    let source: SourceInput;
+    let epicKey: string | undefined;
+    let extraInstructions: string | undefined;
+    let promptStyle: "technical" | "pm";
+    let decompose: boolean;
+    let confirm: boolean;
+    let model: string | undefined;
+    let issueType: string;
+
+    if (parsedArgs === null) {
+      // Interactive mode - clear terminal and start
+      console.clear();
+      let interactiveConfig: Awaited<ReturnType<typeof runInteractiveMode>>;
+      try {
+        interactiveConfig = await runInteractiveMode();
+      } catch {
+        console.log("\n❌ Interactive mode cancelled");
+        process.exit(0);
+      }
+
+      // Convert interactive config to CLI args format
+      if (!interactiveConfig.sourceType || !interactiveConfig.sourceContent) {
+        console.error("❌ Interactive mode was cancelled or incomplete");
+        process.exit(1);
+      }
+
+      source = {
+        type: interactiveConfig.sourceType,
+        content: interactiveConfig.sourceContent,
+      };
+      epicKey = interactiveConfig.epicKey;
+      extraInstructions = interactiveConfig.customInstructions;
+      promptStyle = interactiveConfig.promptStyle;
+      decompose = interactiveConfig.decompose;
+      confirm = false; // Interactive mode handles confirmation differently
+      model = undefined;
+      issueType = interactiveConfig.issueType;
+    } else {
+      // CLI mode
+      source = parsedArgs.source;
+      epicKey = parsedArgs.epicKey;
+      extraInstructions = parsedArgs.extraInstructions;
+      promptStyle = parsedArgs.promptStyle;
+      decompose = parsedArgs.decompose;
+      confirm = parsedArgs.confirm;
+      model = parsedArgs.model;
+      issueType = parsedArgs.issueType;
+    }
 
     // Load configuration
     console.log("📋 Loading configuration...\n");

@@ -66,6 +66,33 @@ The Claude CLI path is typically located at:
 
 ## Usage
 
+### Interactive Mode (Terminal UI)
+
+The interactive mode provides a step-by-step terminal UI for creating tasks:
+
+```bash
+# If installed globally
+claude-pm --interactive
+
+# Or from the project directory
+bun run index.ts --interactive
+```
+
+The interactive mode will guide you through:
+1. **Source type selection**: Choose between Figma URL, error log, or free-form prompt
+2. **Source input**: Enter your Figma URL, error log, or requirements
+3. **Custom instructions** (optional): Add additional requirements or focus areas
+4. **Epic linking** (optional): Link to an existing Jira epic
+5. **Issue type**: Select Story, Task, Bug, Epic, or enter a custom type
+6. **Prompt style**: Choose between PM style or Technical style
+7. **Confirmation**: Review your configuration before proceeding
+
+**Features:**
+- 📝 Step-by-step guided workflow
+- ⌨️ Keyboard navigation (Enter to confirm, ESC to exit)
+- 👀 Visual preview of your configuration
+- 🎯 No need to remember command-line flags
+
 ### Web Interface (Recommended for Non-Technical Users)
 
 Start the web server:
@@ -94,41 +121,59 @@ The web interface provides:
 
 ### CLI Usage (For Advanced Users)
 
+For power users who prefer command-line flags:
+
 ```bash
-bun run index.ts <figma-url> [options]
+claude-pm --figma <url> [options]
+claude-pm --log <text> [options]
+claude-pm --prompt <text> [options]
 ```
 
-#### Arguments
+#### Source Options (one required)
 
-- `figma-url` (required): Figma design node URL
+- `--figma <url>`: Figma design node URL to analyze
+- `--log <text>`: Error log or bug report text to analyze
+- `--prompt <text>`: Free-form text describing requirements or features
 
-#### Options
+#### Additional Options
 
 - `--epic, -e <key>`: Link the created story to a Jira epic (e.g., PROJ-100)
+- `--type, -t <type>`: Jira issue type (default: "Story"). Common types: Story, Task, Bug, Epic
 - `--custom, -c <text>`: Additional custom instructions for the requirements
-- `--style, -s <type>`: Prompt style: "technical" (default) or "pm"
-- `--skip-decomposition`: Skip the task decomposition step (only create story)
+- `--style, -s <type>`: Prompt style: "pm" (default) or "technical"
+  - **pm**: Focuses on user stories and acceptance criteria
+  - **technical**: Includes Technical Considerations section
+- `--model, -m <model>`: Claude model to use (e.g., "sonnet", "opus", or full model name)
+- `--decompose`: Decompose the story into subtasks (default: off)
 - `--confirm`: Interactively confirm each subtask before creating in Jira
 - `--help, -h`: Show help message
 
 #### Examples
 
-**Basic usage:**
+**Figma designs:**
 
 ```bash
-bun run index.ts "https://www.figma.com/design/YTw63KfvSwcMGAyAMxiD8K/Briefs?node-id=5073-14946"
+claude-pm --figma "https://www.figma.com/design/abc/file?node-id=123-456"
+claude-pm --figma "https://..." --epic PROJ-100
+claude-pm --figma "https://..." -c "Focus on accessibility"
+claude-pm --figma "https://..." --style technical --decompose
+claude-pm --figma "https://..." --type Task
 ```
 
-**Link to an epic:**
+**Error logs:**
 
 ```bash
-bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" --epic PROJ-100
+claude-pm --log "Error: Cannot read property 'id' of undefined at line 42"
+claude-pm --log "$(cat error.log)" --epic PROJ-200 --type Bug
+claude-pm --log "Stack trace..." --style technical --model opus
 ```
 
-**With epic and extra instructions:**
+**Free-form prompts:**
 
 ```bash
-bun run index.ts "https://www.figma.com/design/abc/file?node-id=123-456" -e PROJ-100 "Focus on accessibility"
+claude-pm --prompt "Add user profile settings page with theme preferences"
+claude-pm --prompt "$(cat requirements.txt)" --epic PROJ-300
+claude-pm --prompt "Implement OAuth login" --style technical --decompose
 ```
 
 ## How It Works

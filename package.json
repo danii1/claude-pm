@@ -18,5 +18,10 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@types/react": "^19.2.7",
+    "ink": "^6.6.0",
+    "react": "^19.2.3"
   }
 }

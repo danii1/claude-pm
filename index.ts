@@ -82,6 +82,7 @@ interface CLIArgs {
   decompose: boolean;
   confirm: boolean;
   model?: string;
+  issueType: string;
 }
 
 function parseArgs(): CLIArgs {
@@ -103,6 +104,8 @@ Options:
   --web                Start web interface server
   --port <number>      Port for web server (default: 3000, only with --web)
   --epic, -e <key>     Jira epic key to link the story to (e.g., PROJ-100)
+  --type, -t <type>    Jira issue type (default: "Story")
+                       Common types: Story, Task, Bug, Epic
   --custom, -c <text>  Additional custom instructions for the requirements
   --style, -s <type>   Prompt style: "pm" (default) or "technical"
                        - pm: Focuses on user stories and acceptance criteria
@@ -128,10 +131,11 @@ Examples:
   claude-pm --figma "https://..." --epic PROJ-100
   claude-pm --figma "https://..." -c "Focus on accessibility"
   claude-pm --figma "https://..." --style technical --decompose
+  claude-pm --figma "https://..." --type Task
 
   # Error logs
   claude-pm --log "Error: Cannot read property 'id' of undefined at line 42"
-  claude-pm --log "$(cat error.log)" --epic PROJ-200
+  claude-pm --log "$(cat error.log)" --epic PROJ-200 --type Bug
   claude-pm --log "Stack trace..." --style technical --model opus
 
   # Free-form prompts
@@ -149,6 +153,7 @@ Examples:
   let decompose = false; // Default to NOT decomposing
   let confirm = false;
   let model: string | undefined;
+  let issueType = "Story"; // Default to Story
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -203,6 +208,13 @@ Examples:
       }
       epicKey = args[i + 1]!; // Non-null assertion safe due to check above
       i++; // Skip next arg
+    } else if (arg === "--type" || arg === "-t") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --type requires a value");
+        process.exit(1);
+      }
+      issueType = args[i + 1]!; // Non-null assertion safe due to check above
+      i++; // Skip next arg
     } else if (arg === "--custom" || arg === "-c") {
       if (i + 1 >= args.length) {
         console.error("Error: --custom requires a value");
@@ -252,6 +264,7 @@ Examples:
     decompose,
     confirm,
     model,
+    issueType,
     extraInstructions: customInstructions,
   };
 }
@@ -259,7 +272,7 @@ Examples:
 async function main() {
   try {
     // Parse arguments
-    const { source, epicKey, extraInstructions, promptStyle, decompose, confirm, model } = parseArgs();
+    const { source, epicKey, extraInstructions, promptStyle, decompose, confirm, model, issueType } = parseArgs();
 
     // Load configuration
     console.log("📋 Loading configuration...\n");
@@ -286,6 +299,7 @@ async function main() {
       console.log(`${label}: ${preview}`);
     }
     console.log(`Prompt style: ${promptStyle}`);
+    console.log(`Issue type: ${issueType}`);
     if (model) {
       console.log(`Model: ${model}`);
     }
@@ -353,16 +367,17 @@ async function main() {
       process.exit(1);
     }
 
-    console.log("\n📝 Creating Jira story...");
+    console.log(`\n📝 Creating Jira ${issueType.toLowerCase()}...`);
     console.log(`   Title: ${storyData.summary}`);
 
     // Create the Jira story via API
     const jiraStory = await jiraClient.createStory(
       storyData.summary,
-      storyData.description
+      storyData.description,
+      issueType
     );
 
-    console.log(`\n✅ Jira story created: ${jiraStory.url}`);
+    console.log(`\n✅ Jira ${issueType.toLowerCase()} created: ${jiraStory.url}`);
 
     // Link to epic if provided
     if (epicKey) {
@@ -383,9 +398,9 @@ async function main() {
 
     // Check if we should decompose into subtasks
     if (!decompose) {
-      console.log("✅ Story created successfully!\n");
+      console.log(`✅ ${issueType} created successfully!\n`);
       console.log("Summary:");
-      console.log(`  Story: ${jiraStory.url}`);
+      console.log(`  ${issueType}: ${jiraStory.url}`);
       if (epicKey) {
         console.log(`  Epic: ${epicKey}`);
       }
@@ -515,9 +530,9 @@ async function main() {
       }
     }
 
-    console.log("\n✅ Story decomposed into tasks successfully!\n");
+    console.log(`\n✅ ${issueType} decomposed into tasks successfully!\n`);
     console.log("Summary:");
-    console.log(`  Story: ${jiraStory.url}`);
+    console.log(`  ${issueType}: ${jiraStory.url}`);
     console.log(`  Created: ${createdSubtasks.length} subtasks`);
     if (skippedSubtasks.length > 0) {
       console.log(`  Skipped: ${skippedSubtasks.length} subtasks`);

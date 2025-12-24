@@ -64,7 +64,7 @@ export class JiraClient {
     return response.json() as T;
   }
 
-  async createStory(summary: string, description: string): Promise<JiraStory> {
+  async createStory(summary: string, description: string, issueType: string = 'Story'): Promise<JiraStory> {
     // Convert description to ADF format
     const descriptionADF = JiraFormatter.textToADF(description);
 
@@ -76,7 +76,7 @@ export class JiraClient {
         summary,
         description: descriptionADF,
         issuetype: {
-          name: 'Story',
+          name: issueType,
         },
       },
     };

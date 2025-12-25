@@ -15,12 +15,15 @@ logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
-# dotenv environment variable files
+# dotenv environment variable files (legacy)
 .env
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
+
+# claude-pm per-project configuration (contains secrets)
+.claude-pm/.env
 
 # caches
 .eslintcache

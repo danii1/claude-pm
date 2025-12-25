@@ -24,11 +24,9 @@ function sanitizeDomain(domain: string): string {
 }
 
 export async function loadConfig(): Promise<Config> {
-  // Load .env file from the script's directory (not CWD)
-  // This ensures the CLI works when installed globally
-  const scriptDir = import.meta.dir;
-  const projectRoot = join(scriptDir, '..');
-  const envPath = join(projectRoot, '.env');
+  // Load .env file from .claude-pm in the current working directory
+  // This allows per-project configuration
+  const envPath = join(process.cwd(), '.claude-pm', '.env');
 
   // Try to load .env file if it exists
   try {

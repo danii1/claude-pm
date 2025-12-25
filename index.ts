@@ -9,6 +9,7 @@ import { loadConfig } from "./lib/config";
 import { JiraClient } from "./lib/jira";
 import { runClaude } from "./lib/claude";
 import { runInteractiveMode } from "./lib/interactive";
+import { initializeProject } from "./lib/init";
 
 /**
  * Load a prompt template from file and replace placeholders
@@ -92,8 +93,13 @@ interface CLIArgs {
   issueType: string;
 }
 
-function parseArgs(): CLIArgs | null {
+function parseArgs(): CLIArgs | null | 'init' {
   const args = Bun.argv.slice(2);
+
+  // Check for init command early
+  if (args.includes("init") || args.includes("--init")) {
+    return 'init'; // Signal to run init
+  }
 
   // Check for interactive mode early
   if (args.includes("--interactive")) {
@@ -102,11 +108,15 @@ function parseArgs(): CLIArgs | null {
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
-Usage: claude-pm --figma <url> [options]
+Usage: claude-pm init
+       claude-pm --figma <url> [options]
        claude-pm --log <text> [options]
        claude-pm --prompt <text> [options]
        claude-pm --interactive
        claude-pm --web [--port <port>]
+
+Commands:
+  init                 Initialize .claude-pm configuration in current directory
 
 Modes:
   --interactive        Interactive mode - step-by-step task creation (Terminal UI)
@@ -297,8 +307,14 @@ Examples:
 }
 
 async function main() {
-  // Parse arguments - null means interactive mode
+  // Parse arguments - null means interactive mode, 'init' means run initialization
   const parsedArgs = parseArgs();
+
+  // Handle init command
+  if (parsedArgs === 'init') {
+    await initializeProject();
+    return;
+  }
 
   let source: SourceInput;
   let epicKey: string | undefined;

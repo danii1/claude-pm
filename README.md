@@ -32,13 +32,27 @@ bun run install-global
 
 After global installation, you can use `claude-pm` command from anywhere, including the web interface with `claude-pm --web`.
 
-3. Set up environment variables:
+## Configuration
+
+claude-pm uses per-project configuration stored in `.claude-pm/.env` in your project directory. This allows you to work with multiple projects without configuration conflicts.
+
+### Initialize Configuration
+
+Navigate to your project directory and run:
 
 ```bash
-cp .env.example .env
+claude-pm init
 ```
 
-4. Edit `.env` with your configuration:
+This will:
+- Create a `.claude-pm` directory in your current project
+- Copy the configuration template to `.claude-pm/.env`
+- Automatically migrate JIRA credentials from `.claude-intern/.env` if present
+- Update your `.gitignore` to exclude `.claude-pm/.env` (to prevent leaking secrets)
+
+### Edit Configuration
+
+After initialization, edit `.claude-pm/.env` in your project:
 
 ```env
 # JIRA Configuration
@@ -46,7 +60,7 @@ cp .env.example .env
 JIRA_BASE_URL=https://your-org.atlassian.net
 JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your-api-token
-JIRA_PROJECT_KEY=PROJ
+JIRA_DEFAULT_PROJECT_KEY=PROJ
 
 # Claude CLI Configuration
 CLAUDE_CLI_PATH=/path/to/claude

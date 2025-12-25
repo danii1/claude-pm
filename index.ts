@@ -309,14 +309,30 @@ async function main() {
   let model: string | undefined;
   let issueType: string;
   let interactiveHandle: Awaited<ReturnType<typeof runInteractiveMode>> | null = null;
+  let configForInteractive: Awaited<ReturnType<typeof loadConfig>> | undefined;
 
   try {
 
     if (parsedArgs === null) {
       // Interactive mode with preview - setup once
       console.clear();
+
+      // Load config early to fetch issue types
+      configForInteractive = await loadConfig();
+      const jiraClient = new JiraClient(configForInteractive.jira);
+
+      // Fetch issue types from Jira
+      let issueTypeNames: string[] | undefined;
       try {
-        interactiveHandle = await runInteractiveMode();
+        const issueTypesData = await jiraClient.getIssueTypes();
+        issueTypeNames = issueTypesData.map(type => type.name);
+      } catch {
+        // If fetching fails, interactive mode will use defaults
+        console.error('⚠️  Warning: Could not fetch issue types from Jira, using defaults');
+      }
+
+      try {
+        interactiveHandle = await runInteractiveMode({ issueTypes: issueTypeNames });
       } catch {
         console.log("\nBye!");
         process.exit(0);
@@ -354,11 +370,11 @@ async function main() {
       issueType = parsedArgs.issueType;
     }
 
-    // Load configuration
+    // Load configuration (reuse if already loaded for interactive mode)
     if (!interactiveHandle) {
       console.log("📋 Loading configuration...\n");
     }
-    const config = await loadConfig();
+    const config = configForInteractive || await loadConfig();
 
     // Initialize Jira client
     const jiraClient = new JiraClient(config.jira);

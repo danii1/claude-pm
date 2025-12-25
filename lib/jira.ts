@@ -25,10 +25,18 @@ export interface JiraIssueDetails {
   url: string;
 }
 
+export interface JiraIssueType {
+  id: string;
+  name: string;
+  description?: string;
+  subtask: boolean;
+}
+
 export class JiraClient {
   private baseUrl: string;
   private auth: string;
   private config: Config['jira'];
+  private issueTypesCache: JiraIssueType[] | null = null;
 
   constructor(config: Config['jira']) {
     this.config = config;
@@ -198,5 +206,32 @@ export class JiraClient {
       status: result.fields.status.name,
       url: `https://${this.config.domain}/browse/${result.key}`,
     };
+  }
+
+  async getIssueTypes(): Promise<JiraIssueType[]> {
+    // Return cached value if available
+    if (this.issueTypesCache) {
+      return this.issueTypesCache;
+    }
+
+    // Fetch issue types for the project
+    const result = await this.request<any>(
+      `/project/${this.config.projectKey}`
+    );
+
+    // Extract issue types that are not subtasks
+    const issueTypes: JiraIssueType[] = result.issueTypes
+      ?.filter((type: any) => !type.subtask)
+      .map((type: any) => ({
+        id: type.id,
+        name: type.name,
+        description: type.description,
+        subtask: type.subtask,
+      })) || [];
+
+    // Cache the result
+    this.issueTypesCache = issueTypes;
+
+    return issueTypes;
   }
 }

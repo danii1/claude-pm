@@ -38,13 +38,22 @@ export interface InteractiveModeHandle {
   cleanup: () => void;
 }
 
-export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
+export interface InteractiveModeOptions {
+  issueTypes?: string[];
+}
+
+export async function runInteractiveMode(options?: InteractiveModeOptions): Promise<InteractiveModeHandle> {
   return new Promise((resolve, reject) => {
     let completed = false;
     let updateState: ((updates: Partial<InteractiveState>) => void) | null = null;
     let completePromiseResolve: ((config: InteractiveState) => void) | null = null;
     let editPromiseResolve: ((data: { editPrompt: string; currentSummary: string; currentDescription: string }) => void) | null = null;
     let restartPromiseResolve: (() => void) | null = null;
+
+    // Use provided issue types or default fallback
+    const issueTypes = options?.issueTypes && options.issueTypes.length > 0
+      ? options.issueTypes
+      : ['Story', 'Task', 'Bug', 'Epic'];
 
     const InteractiveFormWithPreview: React.FC = () => {
       const { exit } = useApp();
@@ -153,12 +162,16 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
             return;
           }
 
-          if (state.step === 'issue-type' && ['1', '2', '3', '4'].includes(inputChar)) {
-            const types = ['Story', 'Task', 'Bug', 'Epic'] as const;
-            const issueType = types[parseInt(inputChar) - 1]!;
-            setState(prev => ({ ...prev, issueType, step: 'style' }));
-            setInput('');
-            return;
+          if (state.step === 'issue-type') {
+            const index = parseInt(inputChar) - 1;
+            if (index >= 0 && index < issueTypes.length) {
+              const issueType = issueTypes[index];
+              if (issueType) {
+                setState(prev => ({ ...prev, issueType, step: 'style' }));
+                setInput('');
+                return;
+              }
+            }
           }
 
           if (state.step === 'style' && ['1', '2'].includes(inputChar)) {
@@ -284,14 +297,13 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
             break;
 
           case 'issue-type': {
-            if (['1', '2', '3', '4'].includes(trimmedInput)) {
-              const types = ['Story', 'Task', 'Bug', 'Epic'];
-              const issueType = types[parseInt(trimmedInput) - 1]!;
-              setState(prev => ({ ...prev, issueType, step: 'style' }));
-              setInput('');
-            } else if (trimmedInput) {
-              setState(prev => ({ ...prev, issueType: trimmedInput, step: 'style' }));
-              setInput('');
+            const index = parseInt(trimmedInput) - 1;
+            if (index >= 0 && index < issueTypes.length) {
+              const issueType = issueTypes[index];
+              if (issueType) {
+                setState(prev => ({ ...prev, issueType, step: 'style' }));
+                setInput('');
+              }
             }
             break;
           }
@@ -405,11 +417,11 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
             return (
               <Box flexDirection="column" paddingY={1}>
                 <Text bold>Select issue type:</Text>
-                <Text>1. Story (default)</Text>
-                <Text>2. Task</Text>
-                <Text>3. Bug</Text>
-                <Text>4. Epic</Text>
-                <Text dimColor>Or type a custom issue type name</Text>
+                {issueTypes.map((type, index) => (
+                  <Text key={type}>
+                    {index + 1}. {type}{index === 0 ? ' (default)' : ''}
+                  </Text>
+                ))}
               </Box>
             );
 

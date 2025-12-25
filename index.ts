@@ -467,10 +467,84 @@ async function main() {
       process.exit(1);
     }
 
-    // In interactive mode, show preview and wait for confirmation
+    // In interactive mode, show preview and wait for confirmation or edits
     if (interactiveHandle) {
       interactiveHandle.setPreviewData(storyData.summary, storyData.description);
-      await interactiveHandle.waitForCompletion();
+
+      // Edit loop - allow user to request edits multiple times
+      while (true) {
+        const editRequest = await Promise.race([
+          interactiveHandle.waitForCompletion().then(() => null),
+          interactiveHandle.waitForEdit()
+        ]);
+
+        if (!editRequest) {
+          // User confirmed, break out of edit loop
+          break;
+        }
+
+        // User requested an edit
+        const editPrompt = `You are helping revise a Jira ${issueType.toLowerCase()} description.
+
+Current Title: ${editRequest.currentSummary}
+
+Current Description:
+${editRequest.currentDescription}
+
+User's edit request: ${editRequest.editPrompt}
+
+Please update the description based on the user's feedback. Keep the same title unless the user specifically asks to change it. Return ONLY valid JSON in this exact format:
+
+\`\`\`json
+{
+  "summary": "Updated or same title",
+  "description": "Updated description in markdown format"
+}
+\`\`\``;
+
+        const editResult = await runClaude(
+          editPrompt,
+          {
+            maxTurns: 100,
+            skipPermissions: true,
+            planMode: true,
+            model,
+            silent: true,
+          },
+          config.claudeCliPath
+        );
+
+        if (editResult.exitCode !== 0) {
+          console.error("❌ Failed to update task description");
+          console.error(editResult.stderr);
+          // Show error and continue loop to allow retry
+          continue;
+        }
+
+        // Parse updated JSON
+        try {
+          let jsonText = editResult.stdout.trim();
+          const jsonMatch = jsonText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+          if (jsonMatch?.[1]) {
+            jsonText = jsonMatch[1];
+          }
+          const updatedData = JSON.parse(jsonText);
+
+          if (!updatedData.summary || !updatedData.description) {
+            throw new Error("Missing required fields in update");
+          }
+
+          // Update storyData with the new content
+          storyData = updatedData;
+
+          // Show updated preview
+          interactiveHandle.setPreviewData(storyData.summary, storyData.description);
+        } catch (error) {
+          console.error("❌ Failed to parse updated task from Claude");
+          console.error("Error:", error instanceof Error ? error.message : error);
+          // Loop will retry
+        }
+      }
     }
 
     if (!interactiveHandle) {

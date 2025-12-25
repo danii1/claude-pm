@@ -10,7 +10,7 @@ interface Task {
 }
 
 interface InteractiveState {
-  step: 'source-type' | 'source-input' | 'custom' | 'epic' | 'style' | 'issue-type' | 'confirm' | 'generating' | 'preview' | 'done' | 'success';
+  step: 'source-type' | 'source-input' | 'custom' | 'epic' | 'style' | 'issue-type' | 'confirm' | 'generating' | 'preview' | 'edit-prompt' | 'regenerating' | 'done' | 'success';
   sourceType?: 'figma' | 'log' | 'prompt';
   sourceContent?: string;
   customInstructions?: string;
@@ -23,6 +23,7 @@ interface InteractiveState {
     summary: string;
     description: string;
   };
+  editPrompt?: string;
   successMessage?: string;
 }
 
@@ -30,6 +31,7 @@ export interface InteractiveModeHandle {
   setGenerating: () => void;
   setPreviewData: (summary: string, description: string) => void;
   waitForCompletion: () => Promise<InteractiveState>;
+  waitForEdit: () => Promise<{ editPrompt: string; currentSummary: string; currentDescription: string }>;
   showSuccess: (message: string) => void;
   restart: () => void;
   cleanup: () => void;
@@ -40,6 +42,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
     let completed = false;
     let updateState: ((updates: Partial<InteractiveState>) => void) | null = null;
     let completePromiseResolve: ((config: InteractiveState) => void) | null = null;
+    let editPromiseResolve: ((data: { editPrompt: string; currentSummary: string; currentDescription: string }) => void) | null = null;
 
     const InteractiveFormWithPreview: React.FC = () => {
       const { exit } = useApp();
@@ -172,22 +175,29 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
             return;
           }
 
-          if (state.step === 'preview' && ['y', 'n'].includes(inputChar.toLowerCase())) {
-            if (inputChar.toLowerCase() === 'y') {
-              setState(prev => ({ ...prev, step: 'done' }));
-              if (completePromiseResolve) {
-                completed = true;
-                completePromiseResolve(state);
-              }
-            } else {
-              setState(prev => ({
-                ...prev,
-                step: 'source-type',
-                previewData: undefined
-              }));
+          if (state.step === 'preview') {
+            if (inputChar.toLowerCase() === 'e') {
+              setState(prev => ({ ...prev, step: 'edit-prompt' }));
               setInput('');
+              return;
             }
-            return;
+            if (['y', 'n'].includes(inputChar.toLowerCase())) {
+              if (inputChar.toLowerCase() === 'y') {
+                setState(prev => ({ ...prev, step: 'done' }));
+                if (completePromiseResolve) {
+                  completed = true;
+                  completePromiseResolve(state);
+                }
+              } else {
+                setState(prev => ({
+                  ...prev,
+                  step: 'source-type',
+                  previewData: undefined
+                }));
+                setInput('');
+              }
+              return;
+            }
           }
 
           setInput(prev => prev + inputChar);
@@ -221,6 +231,10 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
             setState(prev => ({ ...prev, step: 'style' }));
             break;
           case 'preview':
+            break;
+          case 'edit-prompt':
+            setInput('');
+            setState(prev => ({ ...prev, step: 'preview' }));
             break;
         }
       };
@@ -310,6 +324,20 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
                 setState(prev => ({ ...prev, step: 'source-type', previewData: undefined }));
                 setInput('');
               }
+            }
+            break;
+
+          case 'edit-prompt':
+            if (trimmedInput) {
+              setState(prev => ({ ...prev, editPrompt: trimmedInput, step: 'regenerating' }));
+              if (editPromiseResolve && state.previewData) {
+                editPromiseResolve({
+                  editPrompt: trimmedInput,
+                  currentSummary: state.previewData.summary,
+                  currentDescription: state.previewData.description
+                });
+              }
+              setInput('');
             }
             break;
         }
@@ -477,11 +505,53 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
                   </Box>
                 </Box>
                 <Box paddingTop={1}>
-                  <Text bold>Create this {state.issueType.toLowerCase()} in Jira? (Y/n)</Text>
+                  <Text bold>Create this {state.issueType.toLowerCase()} in Jira? (Y/n) • Press E to edit</Text>
                 </Box>
               </Box>
             );
           }
+
+          case 'edit-prompt':
+            return (
+              <Box flexDirection="column" paddingY={1}>
+                <Box paddingY={1} flexDirection="column">
+                  <Text bold>📌 Title:</Text>
+                  <Box paddingLeft={2}>
+                    <Text color="green">{state.previewData?.summary}</Text>
+                  </Box>
+                </Box>
+                <Box flexDirection="column">
+                  <Text bold>📝 Current Description:</Text>
+                  <Box
+                    borderStyle="single"
+                    borderColor="gray"
+                    paddingX={1}
+                    paddingY={1}
+                    flexDirection="column"
+                    height={15}
+                  >
+                    <ScrollView ref={scrollViewRef}>
+                      <MarkdownText>{state.previewData?.description || ''}</MarkdownText>
+                    </ScrollView>
+                  </Box>
+                </Box>
+                <Box paddingTop={1} flexDirection="column">
+                  <Text bold color="cyan">What would you like to change?</Text>
+                  <Text dimColor>Example: "Add more details about error handling" or "Make it more concise"</Text>
+                  <Box borderStyle="single" borderColor="gray" paddingX={1} marginTop={1}>
+                    <Text color="cyan">&gt; {input}</Text>
+                  </Box>
+                </Box>
+              </Box>
+            );
+
+          case 'regenerating':
+            return (
+              <Box flexDirection="column" paddingY={1}>
+                <Text bold color="cyan">🤖 Updating task description with Claude...</Text>
+                <Text dimColor>This may take a moment</Text>
+              </Box>
+            );
 
           case 'done':
             return (
@@ -554,6 +624,12 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
       }
     };
 
+    const waitForEdit = (): Promise<{ editPrompt: string; currentSummary: string; currentDescription: string }> => {
+      return new Promise((resolveEdit) => {
+        editPromiseResolve = resolveEdit;
+      });
+    };
+
     const showSuccess = (message: string) => {
       if (updateState) {
         updateState({ successMessage: message, step: 'success' });
@@ -592,6 +668,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
       setGenerating,
       setPreviewData,
       waitForCompletion,
+      waitForEdit,
       showSuccess,
       restart,
       cleanup: () => {

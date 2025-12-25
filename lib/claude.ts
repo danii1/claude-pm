@@ -66,8 +66,8 @@ export async function runClaude(
  */
 export function extractJiraUrl(text: string, domain: string): string | null {
   // Match patterns like:
-  // https://your-org.atlassian.net/browse/PROJ-750
-  // PROJ-750
+  // https://your-org.atlassian.net/browse/PROJ-123
+  // PROJ-123
   const urlPattern = new RegExp(
     `https://${domain.replace('.', '\\.')}/browse/([A-Z]+-\\d+)`,
     'i'

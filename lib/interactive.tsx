@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { render, Box, Text, useInput, useApp } from 'ink';
+import { ScrollView, type ScrollViewRef } from 'ink-scroll-view';
 import { MarkdownText } from './MarkdownText';
 
 interface Task {
@@ -50,6 +51,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
         tasks: [],
       });
       const [input, setInput] = useState('');
+      const scrollViewRef = useRef<ScrollViewRef>(null);
 
       // Expose setState to parent
       React.useEffect(() => {
@@ -75,6 +77,47 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
           });
           setInput('');
           return;
+        }
+
+        // Handle scrolling in preview mode
+        if (state.step === 'preview') {
+          if (key.upArrow) {
+            scrollViewRef.current?.scrollBy(-1);
+            return;
+          }
+          if (key.downArrow) {
+            const ref = scrollViewRef.current;
+            if (ref) {
+              const currentOffset = ref.getScrollOffset();
+              const bottomOffset = ref.getBottomOffset();
+              // Only scroll if we haven't reached the bottom
+              if (currentOffset < bottomOffset) {
+                ref.scrollBy(1);
+              }
+            }
+            return;
+          }
+          if (key.pageUp) {
+            const ref = scrollViewRef.current;
+            if (ref) {
+              const height = ref.getViewportHeight() || 1;
+              ref.scrollBy(-height);
+            }
+            return;
+          }
+          if (key.pageDown) {
+            const ref = scrollViewRef.current;
+            if (ref) {
+              const height = ref.getViewportHeight() || 1;
+              const currentOffset = ref.getScrollOffset();
+              const bottomOffset = ref.getBottomOffset();
+              // Only scroll if we haven't reached the bottom
+              if (currentOffset < bottomOffset) {
+                ref.scrollBy(Math.min(height, bottomOffset - currentOffset));
+              }
+            }
+            return;
+          }
         }
 
         if (key.escape) {
@@ -411,9 +454,6 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
             }
             return (
               <Box flexDirection="column" paddingY={1}>
-                <Box borderStyle="double" borderColor="cyan" paddingX={1} flexDirection="column">
-                  <Text bold color="cyan">📋 GENERATED TASK PREVIEW</Text>
-                </Box>
                 <Box paddingY={1} flexDirection="column">
                   <Text bold>📌 Title:</Text>
                   <Box paddingLeft={2}>
@@ -422,14 +462,18 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
                 </Box>
                 <Box flexDirection="column">
                   <Text bold>📝 Description:</Text>
+                  <Text dimColor>(Use arrow keys ↑↓ to scroll, PgUp/PgDn for fast scroll)</Text>
                   <Box
                     borderStyle="single"
                     borderColor="gray"
                     paddingX={1}
                     paddingY={1}
                     flexDirection="column"
+                    height={25}
                   >
-                    <MarkdownText>{state.previewData.description}</MarkdownText>
+                    <ScrollView ref={scrollViewRef}>
+                      <MarkdownText>{state.previewData.description}</MarkdownText>
+                    </ScrollView>
                   </Box>
                 </Box>
                 <Box paddingTop={1}>

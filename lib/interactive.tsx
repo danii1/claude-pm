@@ -9,7 +9,7 @@ interface Task {
 }
 
 interface InteractiveState {
-  step: 'source-type' | 'source-input' | 'custom' | 'epic' | 'style' | 'issue-type' | 'confirm' | 'preview' | 'done' | 'success';
+  step: 'source-type' | 'source-input' | 'custom' | 'epic' | 'style' | 'issue-type' | 'confirm' | 'generating' | 'preview' | 'done' | 'success';
   sourceType?: 'figma' | 'log' | 'prompt';
   sourceContent?: string;
   customInstructions?: string;
@@ -26,6 +26,7 @@ interface InteractiveState {
 }
 
 export interface InteractiveModeHandle {
+  setGenerating: () => void;
   setPreviewData: (summary: string, description: string) => void;
   waitForCompletion: () => Promise<InteractiveState>;
   showSuccess: (message: string) => void;
@@ -116,7 +117,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
 
           if (state.step === 'confirm' && ['y', 'n'].includes(inputChar.toLowerCase())) {
             if (inputChar.toLowerCase() === 'y') {
-              setState(prev => ({ ...prev, step: 'done' }));
+              setState(prev => ({ ...prev, step: 'generating' }));
               if (completePromiseResolve) {
                 completed = true;
                 completePromiseResolve(state);
@@ -242,7 +243,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
           case 'confirm':
             if (['y', 'n', ''].includes(trimmedInput.toLowerCase())) {
               if (trimmedInput.toLowerCase() === 'y' || trimmedInput === '') {
-                setState(prev => ({ ...prev, step: 'done' }));
+                setState(prev => ({ ...prev, step: 'generating' }));
                 if (completePromiseResolve) {
                   completed = true;
                   completePromiseResolve(state);
@@ -392,6 +393,14 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
             );
           }
 
+          case 'generating':
+            return (
+              <Box flexDirection="column" paddingY={1}>
+                <Text bold color="cyan">🤖 Generating task with Claude...</Text>
+                <Text dimColor>This may take a moment</Text>
+              </Box>
+            );
+
           case 'preview': {
             if (!state.previewData) {
               return (
@@ -489,6 +498,12 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
       });
     };
 
+    const setGenerating = () => {
+      if (updateState) {
+        updateState({ step: 'generating' });
+      }
+    };
+
     const setPreviewData = (summary: string, description: string) => {
       if (updateState) {
         updateState({ previewData: { summary, description }, step: 'preview' });
@@ -530,6 +545,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
     };
 
     resolve({
+      setGenerating,
       setPreviewData,
       waitForCompletion,
       showSuccess,

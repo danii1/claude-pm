@@ -7,6 +7,7 @@ export interface ClaudeOptions {
   skipPermissions?: boolean;
   planMode?: boolean;
   model?: string;
+  silent?: boolean;
 }
 
 export interface ClaudeResult {
@@ -37,7 +38,9 @@ export async function runClaude(
   args.push('--max-turns', options.maxTurns.toString());
   args.push(prompt);
 
-  console.log('\n🤖 Running Claude...\n');
+  if (!options.silent) {
+    console.log('\n🤖 Running Claude...\n');
+  }
 
   const proc = Bun.spawn([claudeCliPath, ...args], {
     stdout: 'pipe',

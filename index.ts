@@ -362,35 +362,37 @@ async function main() {
     const jiraClient = new JiraClient(config.jira);
 
     // Step 1: Run Claude to create Jira story from source
-    const sourceTypeLabel =
-      source.type === "figma"
-        ? "Figma design"
-        : source.type === "log"
-        ? "error log"
-        : "free-form prompt";
-    console.log(`Step 1: Creating Jira story from ${sourceTypeLabel}\n`);
-    console.log(`Source type: ${source.type}`);
-    if (source.type === "figma") {
-      console.log(`Figma URL: ${source.content}`);
-    } else {
-      // Show first 100 chars of content
-      const preview =
-        source.content.length > 100
-          ? source.content.substring(0, 100) + "..."
-          : source.content;
-      const label = source.type === "log" ? "Log preview" : "Prompt preview";
-      console.log(`${label}: ${preview}`);
-    }
-    console.log(`Prompt style: ${promptStyle}`);
-    console.log(`Issue type: ${issueType}`);
-    if (model) {
-      console.log(`Model: ${model}`);
-    }
-    if (epicKey) {
-      console.log(`Epic: ${epicKey}`);
-    }
-    if (extraInstructions) {
-      console.log(`Custom instructions: ${extraInstructions}`);
+    if (!interactiveHandle) {
+      const sourceTypeLabel =
+        source.type === "figma"
+          ? "Figma design"
+          : source.type === "log"
+          ? "error log"
+          : "free-form prompt";
+      console.log(`Step 1: Creating Jira story from ${sourceTypeLabel}\n`);
+      console.log(`Source type: ${source.type}`);
+      if (source.type === "figma") {
+        console.log(`Figma URL: ${source.content}`);
+      } else {
+        // Show first 100 chars of content
+        const preview =
+          source.content.length > 100
+            ? source.content.substring(0, 100) + "..."
+            : source.content;
+        const label = source.type === "log" ? "Log preview" : "Prompt preview";
+        console.log(`${label}: ${preview}`);
+      }
+      console.log(`Prompt style: ${promptStyle}`);
+      console.log(`Issue type: ${issueType}`);
+      if (model) {
+        console.log(`Model: ${model}`);
+      }
+      if (epicKey) {
+        console.log(`Epic: ${epicKey}`);
+      }
+      if (extraInstructions) {
+        console.log(`Custom instructions: ${extraInstructions}`);
+      }
     }
 
     // Prepare replacements based on source type
@@ -418,6 +420,11 @@ async function main() {
       replacements
     );
 
+    // In interactive mode, show generating state
+    if (interactiveHandle) {
+      interactiveHandle.setGenerating();
+    }
+
     const storyResult = await runClaude(
       storyPrompt,
       {
@@ -425,6 +432,7 @@ async function main() {
         skipPermissions: true,
         planMode: true,
         model,
+        silent: !!interactiveHandle,
       },
       config.claudeCliPath
     );
@@ -463,8 +471,10 @@ async function main() {
       await interactiveHandle.waitForCompletion();
     }
 
-    console.log(`\n📝 Creating Jira ${issueType.toLowerCase()}...`);
-    console.log(`   Title: ${storyData.summary}`);
+    if (!interactiveHandle) {
+      console.log(`\n📝 Creating Jira ${issueType.toLowerCase()}...`);
+      console.log(`   Title: ${storyData.summary}`);
+    }
 
     // Create the Jira story via API
     const jiraStory = await jiraClient.createStory(
@@ -473,36 +483,57 @@ async function main() {
       issueType
     );
 
-    console.log(
-      `\n✅ Jira ${issueType.toLowerCase()} created: ${jiraStory.url}`
-    );
+    if (!interactiveHandle) {
+      console.log(
+        `\n✅ Jira ${issueType.toLowerCase()} created: ${jiraStory.url}`
+      );
+    }
 
     // Link to epic if provided
     if (epicKey) {
-      console.log(`🔗 Linking story to epic ${epicKey}...`);
+      if (!interactiveHandle) {
+        console.log(`🔗 Linking story to epic ${epicKey}...`);
+      }
       try {
         await jiraClient.linkToEpic(jiraStory.key, epicKey);
-        console.log(`✅ Story linked to epic ${epicKey}`);
+        if (!interactiveHandle) {
+          console.log(`✅ Story linked to epic ${epicKey}`);
+        }
       } catch (error) {
         console.error(
           `⚠️  Warning: Failed to link to epic: ${
             error instanceof Error ? error.message : error
           }`
         );
-        console.log("Continuing with task decomposition...");
+        if (!interactiveHandle) {
+          console.log("Continuing with task decomposition...");
+        }
       }
     }
-    console.log();
+    if (!interactiveHandle) {
+      console.log();
+    }
 
     // Check if we should decompose into subtasks
     if (!decompose) {
-      console.log(`✅ ${issueType} created successfully!\n`);
-      console.log("Summary:");
-      console.log(`  ${issueType}: ${jiraStory.url}`);
-      if (epicKey) {
-        console.log(`  Epic: ${epicKey}`);
+      if (!interactiveHandle) {
+        console.log(`✅ ${issueType} created successfully!\n`);
+        console.log("Summary:");
+        console.log(`  ${issueType}: ${jiraStory.url}`);
+        if (epicKey) {
+          console.log(`  Epic: ${epicKey}`);
+        }
+        console.log("\n🎉 Done!");
       }
-      console.log("\n🎉 Done!");
+
+      // In interactive mode, show success and restart
+      if (interactiveHandle) {
+        interactiveHandle.showSuccess(`Task created: ${jiraStory.url}`);
+        // Wait for auto-restart or key press
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        // Restart the flow
+        return main();
+      }
       return;
     }
 

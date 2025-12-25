@@ -349,6 +349,7 @@ async function main() {
       try {
         interactiveHandle = await runInteractiveMode({
           projects: projectsData,
+          defaultProjectKey: configForInteractive.jira.defaultProjectKey,
           issueTypes: issueTypeNames
         });
       } catch {

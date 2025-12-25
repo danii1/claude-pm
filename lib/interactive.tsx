@@ -41,6 +41,7 @@ export interface InteractiveModeHandle {
 
 export interface InteractiveModeOptions {
   projects?: Array<{ key: string; name: string }>;
+  defaultProjectKey?: string;
   issueTypes?: string[];
 }
 
@@ -53,7 +54,16 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
     let restartPromiseResolve: (() => void) | null = null;
 
     // Use provided projects or empty array
-    const projects = options?.projects || [];
+    const allProjects = options?.projects || [];
+    const defaultProjectKey = options?.defaultProjectKey;
+
+    // Reorder projects to show default first
+    const projects = defaultProjectKey
+      ? [
+          ...allProjects.filter(p => p.key === defaultProjectKey),
+          ...allProjects.filter(p => p.key !== defaultProjectKey)
+        ]
+      : allProjects;
 
     // Use provided issue types or default fallback
     const issueTypes = options?.issueTypes && options.issueTypes.length > 0
@@ -287,6 +297,13 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
 
         switch (state.step) {
           case 'project': {
+            // If Enter is pressed without input, use default project
+            if (trimmedInput === '' && defaultProjectKey) {
+              setState(prev => ({ ...prev, projectKey: defaultProjectKey, step: 'source-type' }));
+              setInput('');
+              break;
+            }
+
             const index = parseInt(trimmedInput) - 1;
             if (index >= 0 && index < projects.length) {
               const project = projects[index];
@@ -405,9 +422,12 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
                 <Text bold>Select project:</Text>
                 {projects.map((project, index) => (
                   <Text key={project.key}>
-                    {index + 1}. {project.name} ({project.key})
+                    {index + 1}. {project.name} ({project.key}){project.key === defaultProjectKey ? ' (default)' : ''}
                   </Text>
                 ))}
+                {defaultProjectKey && (
+                  <Text dimColor>Press Enter to use default project</Text>
+                )}
               </Box>
             );
 

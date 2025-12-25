@@ -19,7 +19,13 @@ async function loadPrompt(
   filename: string,
   replacements: Record<string, string>
 ): Promise<string> {
-  const promptPath = join(import.meta.dir, "prompts", sourceType, style, filename);
+  const promptPath = join(
+    import.meta.dir,
+    "prompts",
+    sourceType,
+    style,
+    filename
+  );
   const promptFile = Bun.file(promptPath);
   let prompt = await promptFile.text();
 
@@ -40,10 +46,10 @@ async function askConfirm(message: string): Promise<boolean> {
 
     try {
       // Use Bun's synchronous readline-like approach
-      const proc = Bun.spawn(['bash', '-c', 'read line && echo "$line"'], {
-        stdin: 'inherit',
-        stdout: 'pipe',
-        stderr: 'inherit',
+      const proc = Bun.spawn(["bash", "-c", 'read line && echo "$line"'], {
+        stdin: "inherit",
+        stdout: "pipe",
+        stderr: "inherit",
       });
 
       const output = await new Response(proc.stdout).text();
@@ -52,9 +58,9 @@ async function askConfirm(message: string): Promise<boolean> {
       const answer = output.trim().toLowerCase();
 
       // Empty input (just Enter) defaults to yes
-      if (answer === '' || answer === 'y' || answer === 'yes') {
+      if (answer === "" || answer === "y" || answer === "yes") {
         return true;
-      } else if (answer === 'n' || answer === 'no') {
+      } else if (answer === "n" || answer === "no") {
         return false;
       } else {
         // Invalid input, loop and prompt again
@@ -62,7 +68,7 @@ async function askConfirm(message: string): Promise<boolean> {
         continue;
       }
     } catch (error) {
-      console.error('\nError reading input:', error);
+      console.error("\nError reading input:", error);
       return false;
     }
   }
@@ -178,7 +184,9 @@ Examples:
         process.exit(1);
       }
       if (source) {
-        console.error("Error: Cannot specify multiple source types (--figma, --log, --prompt)");
+        console.error(
+          "Error: Cannot specify multiple source types (--figma, --log, --prompt)"
+        );
         process.exit(1);
       }
       source = {
@@ -192,7 +200,9 @@ Examples:
         process.exit(1);
       }
       if (source) {
-        console.error("Error: Cannot specify multiple source types (--figma, --log, --prompt)");
+        console.error(
+          "Error: Cannot specify multiple source types (--figma, --log, --prompt)"
+        );
         process.exit(1);
       }
       source = {
@@ -206,7 +216,9 @@ Examples:
         process.exit(1);
       }
       if (source) {
-        console.error("Error: Cannot specify multiple source types (--figma, --log, --prompt)");
+        console.error(
+          "Error: Cannot specify multiple source types (--figma, --log, --prompt)"
+        );
         process.exit(1);
       }
       source = {
@@ -260,13 +272,15 @@ Examples:
       confirm = true;
     } else {
       console.error(`Error: Unknown argument "${arg}"`);
-      console.error('Use --help to see available options');
+      console.error("Use --help to see available options");
       process.exit(1);
     }
   }
 
   if (!source) {
-    console.error("Error: Source is required (use --figma, --log, or --prompt)");
+    console.error(
+      "Error: Source is required (use --figma, --log, or --prompt)"
+    );
     process.exit(1);
   }
 
@@ -303,7 +317,7 @@ async function main() {
       try {
         interactiveConfig = await runInteractiveMode();
       } catch {
-        console.log("\n❌ Interactive mode cancelled");
+        console.log("\nBye!");
         process.exit(0);
       }
 
@@ -345,18 +359,21 @@ async function main() {
 
     // Step 1: Run Claude to create Jira story from source
     const sourceTypeLabel =
-      source.type === "figma" ? "Figma design" :
-      source.type === "log" ? "error log" :
-      "free-form prompt";
+      source.type === "figma"
+        ? "Figma design"
+        : source.type === "log"
+        ? "error log"
+        : "free-form prompt";
     console.log(`Step 1: Creating Jira story from ${sourceTypeLabel}\n`);
     console.log(`Source type: ${source.type}`);
     if (source.type === "figma") {
       console.log(`Figma URL: ${source.content}`);
     } else {
       // Show first 100 chars of content
-      const preview = source.content.length > 100
-        ? source.content.substring(0, 100) + "..."
-        : source.content;
+      const preview =
+        source.content.length > 100
+          ? source.content.substring(0, 100) + "..."
+          : source.content;
       const label = source.type === "log" ? "Log preview" : "Prompt preview";
       console.log(`${label}: ${preview}`);
     }
@@ -374,7 +391,9 @@ async function main() {
 
     // Prepare replacements based on source type
     const replacements: Record<string, string> = {
-      epicContext: epicKey ? `\nThis story will be part of epic: ${epicKey}` : "",
+      epicContext: epicKey
+        ? `\nThis story will be part of epic: ${epicKey}`
+        : "",
       extraInstructions: extraInstructions
         ? `\nAdditional instructions: ${extraInstructions}`
         : "",
@@ -388,7 +407,12 @@ async function main() {
       replacements.promptContent = source.content;
     }
 
-    const storyPrompt = await loadPrompt(source.type, promptStyle, "story-generation.txt", replacements);
+    const storyPrompt = await loadPrompt(
+      source.type,
+      promptStyle,
+      "story-generation.txt",
+      replacements
+    );
 
     const storyResult = await runClaude(
       storyPrompt,
@@ -439,7 +463,9 @@ async function main() {
       issueType
     );
 
-    console.log(`\n✅ Jira ${issueType.toLowerCase()} created: ${jiraStory.url}`);
+    console.log(
+      `\n✅ Jira ${issueType.toLowerCase()} created: ${jiraStory.url}`
+    );
 
     // Link to epic if provided
     if (epicKey) {
@@ -473,10 +499,15 @@ async function main() {
     // Step 2: Run Claude to decompose the story into tasks
     console.log("Step 2: Decomposing story into tasks\n");
 
-    const decomposePrompt = await loadPrompt(source.type, promptStyle, "decomposition.txt", {
-      storySummary: storyData.summary,
-      storyDescription: storyData.description,
-    });
+    const decomposePrompt = await loadPrompt(
+      source.type,
+      promptStyle,
+      "decomposition.txt",
+      {
+        storySummary: storyData.summary,
+        storyDescription: storyData.description,
+      }
+    );
 
     const decomposeResult = await runClaude(
       decomposePrompt,
@@ -536,7 +567,7 @@ async function main() {
       // If confirmation mode is enabled, ask user
       if (confirm) {
         // Visual separator between tasks
-        console.log('\n' + '─'.repeat(80));
+        console.log("\n" + "─".repeat(80));
         console.log(`\n📋 Task ${i + 1}/${subtasksData.subtasks.length}`);
         console.log(`   ${subtask.summary}\n`);
 
@@ -544,16 +575,16 @@ async function main() {
           // Show first 300 characters of description with better formatting
           const descPreview = subtask.description.substring(0, 300);
           // Split into lines and indent each line
-          const lines = descPreview.split('\n');
+          const lines = descPreview.split("\n");
           for (const line of lines) {
             if (line.trim()) {
               console.log(`   ${line}`);
             }
           }
           if (subtask.description.length > 300) {
-            console.log('   ...');
+            console.log("   ...");
           }
-          console.log(''); // Extra blank line
+          console.log(""); // Extra blank line
         }
 
         const shouldCreate = await askConfirm(`Create this subtask?`);
@@ -582,7 +613,9 @@ async function main() {
       } catch (error) {
         if (confirm) {
           console.error(`⚠️  Failed to create subtask: ${subtask.summary}`);
-          console.error(`   Error: ${error instanceof Error ? error.message : error}\n`);
+          console.error(
+            `   Error: ${error instanceof Error ? error.message : error}\n`
+          );
         } else {
           console.error(`   ⚠️  Failed to create subtask: ${subtask.summary}`);
           console.error(
@@ -617,20 +650,23 @@ const args = Bun.argv.slice(2);
 if (args.includes("--web")) {
   // Extract port if provided
   const portIndex = args.indexOf("--port");
-  const port = portIndex !== -1 && args[portIndex + 1]
-    ? parseInt(args[portIndex + 1]!, 10)
-    : 3000;
+  const port =
+    portIndex !== -1 && args[portIndex + 1]
+      ? parseInt(args[portIndex + 1]!, 10)
+      : 3000;
 
   // Set port in environment
   process.env.PORT = port.toString();
 
   // Dynamically import and start the server
-  import("./server").then(() => {
-    // Server will start automatically when module is loaded
-  }).catch((error) => {
-    console.error("Failed to start web server:", error);
-    process.exit(1);
-  });
+  import("./server")
+    .then(() => {
+      // Server will start automatically when module is loaded
+    })
+    .catch((error) => {
+      console.error("Failed to start web server:", error);
+      process.exit(1);
+    });
 } else {
   // Run CLI mode
   main();

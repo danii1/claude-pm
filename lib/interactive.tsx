@@ -31,8 +31,15 @@ const InteractiveForm: React.FC<{ onComplete: (config: InteractiveState) => void
   const [input, setInput] = useState('');
 
   useInput((inputChar, key) => {
-    if (key.escape) {
+    // Ctrl+C exits the app
+    if (key.ctrl && inputChar === 'c') {
       exit();
+      return;
+    }
+
+    // Escape goes to previous step
+    if (key.escape) {
+      handleEscape();
       return;
     }
 
@@ -73,9 +80,52 @@ const InteractiveForm: React.FC<{ onComplete: (config: InteractiveState) => void
         return;
       }
 
+      // For confirm, auto-advance when pressing y or n
+      if (state.step === 'confirm' && ['y', 'n'].includes(inputChar.toLowerCase())) {
+        if (inputChar.toLowerCase() === 'y') {
+          setState(prev => ({ ...prev, step: 'done' }));
+          onComplete(state);
+        } else {
+          setState(prev => ({ ...prev, step: 'source-type' }));
+          setInput('');
+        }
+        return;
+      }
+
       setInput(prev => prev + inputChar);
     }
   });
+
+  const handleEscape = () => {
+    // Navigate to previous step and restore previous input value
+    switch (state.step) {
+      case 'source-input':
+        setInput('');
+        setState(prev => ({ ...prev, step: 'source-type' }));
+        break;
+      case 'custom':
+        setInput(state.sourceContent || '');
+        setState(prev => ({ ...prev, step: 'source-input' }));
+        break;
+      case 'epic':
+        setInput(state.customInstructions || '');
+        setState(prev => ({ ...prev, step: 'custom' }));
+        break;
+      case 'issue-type':
+        setInput(state.epicKey || '');
+        setState(prev => ({ ...prev, step: 'epic' }));
+        break;
+      case 'style':
+        setInput('');
+        setState(prev => ({ ...prev, step: 'issue-type' }));
+        break;
+      case 'confirm':
+        setInput('');
+        setState(prev => ({ ...prev, step: 'style' }));
+        break;
+      // For source-type and done, do nothing (can't go back further)
+    }
+  };
 
   const handleEnter = () => {
     const trimmedInput = input.trim();
@@ -240,30 +290,54 @@ const InteractiveForm: React.FC<{ onComplete: (config: InteractiveState) => void
       //     </Box>
       //   );
 
-      case 'confirm':
+      case 'confirm': {
+        const sourceLabel = state.sourceType === 'figma'
+          ? 'URL'
+          : state.sourceType === 'log'
+            ? 'Error Log'
+            : 'Requirements';
         return (
           <Box flexDirection="column" paddingY={1}>
             <Text bold color="green">Review your configuration:</Text>
             <Box paddingLeft={2} flexDirection="column" paddingY={1}>
-              <Text>Source: <Text color="cyan">{state.sourceType}</Text></Text>
-              {state.sourceType === 'figma' && (
-                <Text>URL: <Text color="cyan">{state.sourceContent}</Text></Text>
+              <Text bold>Source Type:</Text>
+              <Text color="cyan">{state.sourceType}</Text>
+
+              {state.sourceContent && (
+                <Box flexDirection="column" paddingTop={1}>
+                  <Text bold>{sourceLabel}:</Text>
+                  <Text color="cyan">{state.sourceContent}</Text>
+                </Box>
               )}
+
               {state.customInstructions && (
-                <Text>Custom: <Text color="cyan">{state.customInstructions}</Text></Text>
+                <Box flexDirection="column" paddingTop={1}>
+                  <Text bold>Custom Instructions:</Text>
+                  <Text color="cyan">{state.customInstructions}</Text>
+                </Box>
               )}
+
               {state.epicKey && (
-                <Text>Epic: <Text color="cyan">{state.epicKey}</Text></Text>
+                <Box flexDirection="column" paddingTop={1}>
+                  <Text bold>Epic:</Text>
+                  <Text color="cyan">{state.epicKey}</Text>
+                </Box>
               )}
-              <Text>Issue Type: <Text color="cyan">{state.issueType}</Text></Text>
-              <Text>Style: <Text color="cyan">{state.promptStyle}</Text></Text>
+
+              <Box flexDirection="column" paddingTop={1}>
+                <Text bold>Issue Type:</Text>
+                <Text color="cyan">{state.issueType}</Text>
+              </Box>
+
+              <Box flexDirection="column" paddingTop={1}>
+                <Text bold>Prompt Style:</Text>
+                <Text color="cyan">{state.promptStyle}</Text>
+              </Box>
             </Box>
-            <Text bold>Continue? (Y/n):</Text>
-            <Box borderStyle="single" borderColor="gray" paddingX={1}>
-              <Text color="cyan">&gt; {input}</Text>
-            </Box>
+            <Text bold>Continue? (Y/n)</Text>
           </Box>
         );
+      }
 
       case 'done':
         return (
@@ -282,7 +356,7 @@ const InteractiveForm: React.FC<{ onComplete: (config: InteractiveState) => void
     <Box flexDirection="column">
       <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
         <Text bold color="cyan">📋 Claude PM - Interactive Mode</Text>
-        <Text dimColor>Press ESC to exit at any time</Text>
+        <Text dimColor>ESC: Back • Ctrl+C: Exit</Text>
       </Box>
       {renderStep()}
     </Box>

@@ -355,7 +355,9 @@ async function main() {
     }
 
     // Load configuration
-    console.log("📋 Loading configuration...\n");
+    if (!interactiveHandle) {
+      console.log("📋 Loading configuration...\n");
+    }
     const config = await loadConfig();
 
     // Initialize Jira client

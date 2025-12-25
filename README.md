@@ -41,8 +41,9 @@ cp .env.example .env
 4. Edit `.env` with your configuration:
 
 ```env
-# Jira Configuration
-JIRA_DOMAIN=your-org.atlassian.net
+# JIRA Configuration
+# Your JIRA instance URL (without trailing slash)
+JIRA_BASE_URL=https://your-org.atlassian.net
 JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=PROJ

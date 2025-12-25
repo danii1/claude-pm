@@ -132,7 +132,7 @@ Options:
   --help, -h           Show this help message
 
 Environment variables (set in .env):
-  JIRA_DOMAIN         Your Jira domain (e.g., your-org.atlassian.net)
+  JIRA_BASE_URL       Your JIRA instance URL (e.g., https://your-org.atlassian.net)
   JIRA_EMAIL          Your Jira email
   JIRA_API_TOKEN      Your Jira API token
   JIRA_PROJECT_KEY    Your Jira project key (e.g., PROJ)

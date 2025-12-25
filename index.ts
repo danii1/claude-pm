@@ -297,29 +297,33 @@ Examples:
 }
 
 async function main() {
-  try {
-    // Parse arguments - null means interactive mode
-    const parsedArgs = parseArgs();
+  // Parse arguments - null means interactive mode
+  const parsedArgs = parseArgs();
 
-    let source: SourceInput;
-    let epicKey: string | undefined;
-    let extraInstructions: string | undefined;
-    let promptStyle: "technical" | "pm";
-    let decompose: boolean;
-    let confirm: boolean;
-    let model: string | undefined;
-    let issueType: string;
+  let source: SourceInput;
+  let epicKey: string | undefined;
+  let extraInstructions: string | undefined;
+  let promptStyle: "technical" | "pm";
+  let decompose: boolean;
+  let confirm: boolean;
+  let model: string | undefined;
+  let issueType: string;
+  let interactiveHandle: Awaited<ReturnType<typeof runInteractiveMode>> | null = null;
+
+  try {
 
     if (parsedArgs === null) {
-      // Interactive mode - clear terminal and start
+      // Interactive mode with preview - setup once
       console.clear();
-      let interactiveConfig: Awaited<ReturnType<typeof runInteractiveMode>>;
       try {
-        interactiveConfig = await runInteractiveMode();
+        interactiveHandle = await runInteractiveMode();
       } catch {
         console.log("\nBye!");
         process.exit(0);
       }
+
+      // Get initial config (before preview)
+      const interactiveConfig = await interactiveHandle.waitForCompletion();
 
       // Convert interactive config to CLI args format
       if (!interactiveConfig.sourceType || !interactiveConfig.sourceContent) {
@@ -451,6 +455,12 @@ async function main() {
       console.error("Error:", error instanceof Error ? error.message : error);
       console.error("Output:", storyResult.stdout);
       process.exit(1);
+    }
+
+    // In interactive mode, show preview and wait for confirmation
+    if (interactiveHandle) {
+      interactiveHandle.setPreviewData(storyData.summary, storyData.description);
+      await interactiveHandle.waitForCompletion();
     }
 
     console.log(`\n📝 Creating Jira ${issueType.toLowerCase()}...`);
@@ -636,11 +646,29 @@ async function main() {
       console.log(`  Epic: ${epicKey}`);
     }
     console.log("\n🎉 Done!");
+
+    // In interactive mode, show success and restart
+    if (interactiveHandle) {
+      interactiveHandle.showSuccess(`Task created: ${jiraStory.url}`);
+      // Wait for auto-restart or key press
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      // Restart the flow
+      return main();
+    }
   } catch (error) {
     console.error(
       "\n❌ Error:",
       error instanceof Error ? error.message : error
     );
+    // In interactive mode, show error and restart
+    if (interactiveHandle) {
+      interactiveHandle.showSuccess(
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      interactiveHandle.restart();
+      return main();
+    }
     process.exit(1);
   }
 }

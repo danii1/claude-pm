@@ -308,6 +308,7 @@ async function main() {
   let confirm: boolean;
   let model: string | undefined;
   let issueType: string;
+  let projectKey: string | undefined;
   let interactiveHandle: Awaited<ReturnType<typeof runInteractiveMode>> | null = null;
   let configForInteractive: Awaited<ReturnType<typeof loadConfig>> | undefined;
 
@@ -317,14 +318,28 @@ async function main() {
       // Interactive mode with preview - setup once
       console.clear();
 
-      // Load config early to fetch issue types
+      // Load config early to fetch projects and issue types
       configForInteractive = await loadConfig();
       const jiraClient = new JiraClient(configForInteractive.jira);
 
-      // Fetch issue types from Jira
+      // Fetch projects user has access to
+      let projectsData: Array<{ key: string; name: string }> | undefined;
+      try {
+        const projects = await jiraClient.getProjects();
+        projectsData = projects.map(p => ({ key: p.key, name: p.name }));
+      } catch {
+        console.error('⚠️  Warning: Could not fetch projects from Jira');
+      }
+
+      // Determine which project to use for fetching issue types
+      const projectKeyForIssueTypes = projectsData && projectsData.length > 0
+        ? projectsData[0]?.key
+        : configForInteractive.jira.defaultProjectKey;
+
+      // Fetch issue types from Jira for the first project (or default)
       let issueTypeNames: string[] | undefined;
       try {
-        const issueTypesData = await jiraClient.getIssueTypes();
+        const issueTypesData = await jiraClient.getIssueTypes(projectKeyForIssueTypes);
         issueTypeNames = issueTypesData.map(type => type.name);
       } catch {
         // If fetching fails, interactive mode will use defaults
@@ -332,7 +347,10 @@ async function main() {
       }
 
       try {
-        interactiveHandle = await runInteractiveMode({ issueTypes: issueTypeNames });
+        interactiveHandle = await runInteractiveMode({
+          projects: projectsData,
+          issueTypes: issueTypeNames
+        });
       } catch {
         console.log("\nBye!");
         process.exit(0);
@@ -358,6 +376,7 @@ async function main() {
       confirm = false; // Interactive mode handles confirmation differently
       model = undefined;
       issueType = interactiveConfig.issueType;
+      projectKey = interactiveConfig.projectKey;
     } else {
       // CLI mode
       source = parsedArgs.source;
@@ -368,6 +387,7 @@ async function main() {
       confirm = parsedArgs.confirm;
       model = parsedArgs.model;
       issueType = parsedArgs.issueType;
+      projectKey = undefined; // CLI mode uses default project
     }
 
     // Load configuration (reuse if already loaded for interactive mode)
@@ -572,7 +592,8 @@ Please update the description based on the user's feedback. Keep the same title 
     const jiraStory = await jiraClient.createStory(
       storyData.summary,
       storyData.description,
-      issueType
+      issueType,
+      projectKey
     );
 
     if (!interactiveHandle) {
@@ -735,7 +756,8 @@ Please update the description based on the user's feedback. Keep the same title 
         const created = await jiraClient.createSubtask(
           jiraStory.key,
           subtask.summary,
-          description
+          description,
+          projectKey
         );
         createdSubtasks.push(created);
         if (confirm) {

@@ -32,11 +32,19 @@ export interface JiraIssueType {
   subtask: boolean;
 }
 
+export interface JiraProject {
+  id: string;
+  key: string;
+  name: string;
+  projectTypeKey: string;
+}
+
 export class JiraClient {
   private baseUrl: string;
   private auth: string;
   private config: Config['jira'];
-  private issueTypesCache: JiraIssueType[] | null = null;
+  private issueTypesCacheByProject: Map<string, JiraIssueType[]> = new Map();
+  private projectsCache: JiraProject[] | null = null;
 
   constructor(config: Config['jira']) {
     this.config = config;
@@ -72,14 +80,14 @@ export class JiraClient {
     return response.json() as T;
   }
 
-  async createStory(summary: string, description: string, issueType: string = 'Story'): Promise<JiraStory> {
+  async createStory(summary: string, description: string, issueType: string = 'Story', projectKey?: string): Promise<JiraStory> {
     // Convert description to ADF format
     const descriptionADF = JiraFormatter.textToADF(description);
 
     const issueData = {
       fields: {
         project: {
-          key: this.config.projectKey,
+          key: projectKey || this.config.defaultProjectKey,
         },
         summary,
         description: descriptionADF,
@@ -105,7 +113,8 @@ export class JiraClient {
   async createSubtask(
     parentKey: string,
     summary: string,
-    description?: string
+    description?: string,
+    projectKey?: string
   ): Promise<JiraTask> {
     // Convert description to ADF format if provided
     const descriptionADF = description
@@ -115,7 +124,7 @@ export class JiraClient {
     const issueData = {
       fields: {
         project: {
-          key: this.config.projectKey,
+          key: projectKey || this.config.defaultProjectKey,
         },
         parent: {
           key: parentKey,
@@ -208,15 +217,43 @@ export class JiraClient {
     };
   }
 
-  async getIssueTypes(): Promise<JiraIssueType[]> {
+  async getProjects(): Promise<JiraProject[]> {
     // Return cached value if available
-    if (this.issueTypesCache) {
-      return this.issueTypesCache;
+    if (this.projectsCache) {
+      return this.projectsCache;
+    }
+
+    // Fetch projects the user has access to
+    const result = await this.request<any>(
+      '/project/search?maxResults=100'
+    );
+
+    // Extract project information
+    const projects: JiraProject[] = result.values?.map((project: any) => ({
+      id: project.id,
+      key: project.key,
+      name: project.name,
+      projectTypeKey: project.projectTypeKey,
+    })) || [];
+
+    // Cache the result
+    this.projectsCache = projects;
+
+    return projects;
+  }
+
+  async getIssueTypes(projectKey?: string): Promise<JiraIssueType[]> {
+    const targetProjectKey = projectKey || this.config.defaultProjectKey;
+
+    // Return cached value if available
+    const cached = this.issueTypesCacheByProject.get(targetProjectKey);
+    if (cached) {
+      return cached;
     }
 
     // Fetch issue types for the project
     const result = await this.request<any>(
-      `/project/${this.config.projectKey}`
+      `/project/${targetProjectKey}`
     );
 
     // Extract issue types that are not subtasks
@@ -229,8 +266,8 @@ export class JiraClient {
         subtask: type.subtask,
       })) || [];
 
-    // Cache the result
-    this.issueTypesCache = issueTypes;
+    // Cache the result for this project
+    this.issueTypesCacheByProject.set(targetProjectKey, issueTypes);
 
     return issueTypes;
   }

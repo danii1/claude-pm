@@ -10,7 +10,8 @@ interface Task {
 }
 
 interface InteractiveState {
-  step: 'source-type' | 'source-input' | 'custom' | 'epic' | 'style' | 'issue-type' | 'confirm' | 'generating' | 'preview' | 'edit-prompt' | 'regenerating' | 'done' | 'success';
+  step: 'project' | 'source-type' | 'source-input' | 'custom' | 'epic' | 'style' | 'issue-type' | 'confirm' | 'generating' | 'preview' | 'edit-prompt' | 'regenerating' | 'done' | 'success';
+  projectKey?: string;
   sourceType?: 'figma' | 'log' | 'prompt';
   sourceContent?: string;
   customInstructions?: string;
@@ -39,6 +40,7 @@ export interface InteractiveModeHandle {
 }
 
 export interface InteractiveModeOptions {
+  projects?: Array<{ key: string; name: string }>;
   issueTypes?: string[];
 }
 
@@ -50,6 +52,9 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
     let editPromiseResolve: ((data: { editPrompt: string; currentSummary: string; currentDescription: string }) => void) | null = null;
     let restartPromiseResolve: (() => void) | null = null;
 
+    // Use provided projects or empty array
+    const projects = options?.projects || [];
+
     // Use provided issue types or default fallback
     const issueTypes = options?.issueTypes && options.issueTypes.length > 0
       ? options.issueTypes
@@ -58,7 +63,7 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
     const InteractiveFormWithPreview: React.FC = () => {
       const { exit } = useApp();
       const [state, setState] = useState<InteractiveState>({
-        step: 'source-type',
+        step: projects.length > 0 ? 'project' : 'source-type',
         promptStyle: 'pm',
         issueType: 'Story',
         decompose: false,
@@ -83,7 +88,7 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
         // Success screen - any key restarts
         if (state.step === 'success') {
           setState({
-            step: 'source-type',
+            step: projects.length > 0 ? 'project' : 'source-type',
             promptStyle: 'pm',
             issueType: 'Story',
             decompose: false,
@@ -155,6 +160,18 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
         }
 
         if (!key.ctrl && !key.meta && inputChar) {
+          if (state.step === 'project') {
+            const index = parseInt(inputChar) - 1;
+            if (index >= 0 && index < projects.length) {
+              const project = projects[index];
+              if (project) {
+                setState(prev => ({ ...prev, projectKey: project.key, step: 'source-type' }));
+                setInput('');
+                return;
+              }
+            }
+          }
+
           if (state.step === 'source-type' && ['1', '2', '3'].includes(inputChar)) {
             const sourceType = inputChar === '1' ? 'figma' : inputChar === '2' ? 'log' : 'prompt';
             setState(prev => ({ ...prev, sourceType, step: 'source-input' }));
@@ -226,6 +243,12 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
 
       const handleEscape = () => {
         switch (state.step) {
+          case 'source-type':
+            if (projects.length > 0) {
+              setInput('');
+              setState(prev => ({ ...prev, step: 'project' }));
+            }
+            break;
           case 'source-input':
             setInput('');
             setState(prev => ({ ...prev, step: 'source-type' }));
@@ -263,6 +286,18 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
         const trimmedInput = input.trim();
 
         switch (state.step) {
+          case 'project': {
+            const index = parseInt(trimmedInput) - 1;
+            if (index >= 0 && index < projects.length) {
+              const project = projects[index];
+              if (project) {
+                setState(prev => ({ ...prev, projectKey: project.key, step: 'source-type' }));
+                setInput('');
+              }
+            }
+            break;
+          }
+
           case 'source-type':
             if (['1', '2', '3'].includes(trimmedInput)) {
               const sourceType = trimmedInput === '1' ? 'figma' : trimmedInput === '2' ? 'log' : 'prompt';
@@ -364,6 +399,18 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
 
       const renderStep = () => {
         switch (state.step) {
+          case 'project':
+            return (
+              <Box flexDirection="column" paddingY={1}>
+                <Text bold>Select project:</Text>
+                {projects.map((project, index) => (
+                  <Text key={project.key}>
+                    {index + 1}. {project.name} ({project.key})
+                  </Text>
+                ))}
+              </Box>
+            );
+
           case 'source-type':
             return (
               <Box flexDirection="column" paddingY={1}>
@@ -444,6 +491,13 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
               <Box flexDirection="column" paddingY={1}>
                 <Text bold color="green">Review your configuration:</Text>
                 <Box paddingLeft={2} flexDirection="column" paddingY={1}>
+                  {state.projectKey && (
+                    <Box flexDirection="column" paddingBottom={1}>
+                      <Text bold>Project:</Text>
+                      <Text color="cyan">{state.projectKey}</Text>
+                    </Box>
+                  )}
+
                   <Text bold>Source Type:</Text>
                   <Text color="cyan">{state.sourceType}</Text>
 
@@ -664,7 +718,8 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
     const restart = () => {
       if (updateState) {
         updateState({
-          step: 'source-type',
+          step: projects.length > 0 ? 'project' : 'source-type',
+          projectKey: undefined,
           sourceType: undefined,
           sourceContent: undefined,
           customInstructions: undefined,

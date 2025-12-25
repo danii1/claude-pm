@@ -33,6 +33,7 @@ export interface InteractiveModeHandle {
   waitForCompletion: () => Promise<InteractiveState>;
   waitForEdit: () => Promise<{ editPrompt: string; currentSummary: string; currentDescription: string }>;
   showSuccess: (message: string) => void;
+  waitForRestart: () => Promise<void>;
   restart: () => void;
   cleanup: () => void;
 }
@@ -43,6 +44,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
     let updateState: ((updates: Partial<InteractiveState>) => void) | null = null;
     let completePromiseResolve: ((config: InteractiveState) => void) | null = null;
     let editPromiseResolve: ((data: { editPrompt: string; currentSummary: string; currentDescription: string }) => void) | null = null;
+    let restartPromiseResolve: (() => void) | null = null;
 
     const InteractiveFormWithPreview: React.FC = () => {
       const { exit } = useApp();
@@ -79,6 +81,11 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
             tasks: [],
           });
           setInput('');
+          // Resolve restart promise if waiting
+          if (restartPromiseResolve) {
+            restartPromiseResolve();
+            restartPromiseResolve = null;
+          }
           return;
         }
 
@@ -574,8 +581,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
                   </Box>
                 </Box>
                 <Box paddingTop={1}>
-                  <Text dimColor>Returning to start in 2 seconds...</Text>
-                  <Text dimColor>(or press any key to continue)</Text>
+                  <Text dimColor>Press any key to create another task...</Text>
                 </Box>
               </Box>
             );
@@ -634,21 +640,13 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
     const showSuccess = (message: string) => {
       if (updateState) {
         updateState({ successMessage: message, step: 'success' });
-        // Auto-restart after 2 seconds
-        setTimeout(() => {
-          if (updateState) {
-            updateState({
-              step: 'source-type',
-              sourceType: undefined,
-              sourceContent: undefined,
-              customInstructions: undefined,
-              epicKey: undefined,
-              previewData: undefined,
-              successMessage: undefined,
-            });
-          }
-        }, 2000);
       }
+    };
+
+    const waitForRestart = (): Promise<void> => {
+      return new Promise((resolveRestart) => {
+        restartPromiseResolve = resolveRestart;
+      });
     };
 
     const restart = () => {
@@ -671,6 +669,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
       waitForCompletion,
       waitForEdit,
       showSuccess,
+      waitForRestart,
       restart,
       cleanup: () => {
         unmount();

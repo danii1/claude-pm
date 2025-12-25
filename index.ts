@@ -602,11 +602,11 @@ Please update the description based on the user's feedback. Keep the same title 
         console.log("\n🎉 Done!");
       }
 
-      // In interactive mode, show success and restart
+      // In interactive mode, show success and wait for user to restart
       if (interactiveHandle) {
         interactiveHandle.showSuccess(`Task created: ${jiraStory.url}`);
-        // Wait for auto-restart or key press
-        await new Promise((resolve) => setTimeout(resolve, 2500));
+        // Wait for user key press to restart
+        await interactiveHandle.waitForRestart();
         // Restart the flow
         return main();
       }
@@ -754,11 +754,11 @@ Please update the description based on the user's feedback. Keep the same title 
     }
     console.log("\n🎉 Done!");
 
-    // In interactive mode, show success and restart
+    // In interactive mode, show success and wait for user to restart
     if (interactiveHandle) {
       interactiveHandle.showSuccess(`Task created: ${jiraStory.url}`);
-      // Wait for auto-restart or key press
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      // Wait for user key press to restart
+      await interactiveHandle.waitForRestart();
       // Restart the flow
       return main();
     }
@@ -767,13 +767,13 @@ Please update the description based on the user's feedback. Keep the same title 
       "\n❌ Error:",
       error instanceof Error ? error.message : error
     );
-    // In interactive mode, show error and restart
+    // In interactive mode, show error and wait for user to restart
     if (interactiveHandle) {
       interactiveHandle.showSuccess(
         `Error: ${error instanceof Error ? error.message : "Unknown error"}`
       );
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      interactiveHandle.restart();
+      // Wait for user key press to restart
+      await interactiveHandle.waitForRestart();
       return main();
     }
     process.exit(1);

@@ -73,7 +73,8 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
     const InteractiveFormWithPreview: React.FC = () => {
       const { exit } = useApp();
       const [state, setState] = useState<InteractiveState>({
-        step: projects.length > 0 ? 'project' : 'source-type',
+        step: 'source-type',
+        projectKey: defaultProjectKey, // Start with default project
         promptStyle: 'pm',
         issueType: 'Story',
         decompose: false,
@@ -95,10 +96,20 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
           return;
         }
 
+        // Ctrl+P to navigate to project selection (only if projects are available)
+        if (key.ctrl && inputChar === 'p' && projects.length > 0) {
+          if (state.step !== 'generating' && state.step !== 'regenerating' && state.step !== 'done' && state.step !== 'success') {
+            setState(prev => ({ ...prev, step: 'project' }));
+            setInput('');
+            return;
+          }
+        }
+
         // Success screen - any key restarts
         if (state.step === 'success') {
           setState({
-            step: projects.length > 0 ? 'project' : 'source-type',
+            step: 'source-type',
+            projectKey: defaultProjectKey,
             promptStyle: 'pm',
             issueType: 'Story',
             decompose: false,
@@ -242,10 +253,12 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
       const handleEscape = () => {
         switch (state.step) {
           case 'source-type':
-            if (projects.length > 0) {
-              setInput('');
-              setState(prev => ({ ...prev, step: 'project' }));
-            }
+            // Can't go back from source-type, it's the first step
+            break;
+          case 'project':
+            // Go back to previous step (source-type)
+            setInput('');
+            setState(prev => ({ ...prev, step: 'source-type' }));
             break;
           case 'source-input':
             setInput('');
@@ -668,10 +681,20 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
         }
       };
 
+      // Get current project name for display
+      const currentProjectName = projects.find(p => p.key === state.projectKey)?.name || state.projectKey || 'N/A';
+
       return (
         <Box flexDirection="column">
           <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
             <Text bold color="cyan">📋 Claude PM - Interactive Mode</Text>
+            <Box flexDirection="row" gap={1}>
+              <Text dimColor>Project: </Text>
+              <Text color="cyan">{currentProjectName}</Text>
+              {projects.length > 0 && (
+                <Text dimColor> • Ctrl+P: Change Project</Text>
+              )}
+            </Box>
             <Text dimColor>ESC: Back • Ctrl+C: Exit</Text>
           </Box>
           {renderStep()}
@@ -729,8 +752,8 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
     const restart = () => {
       if (updateState) {
         updateState({
-          step: projects.length > 0 ? 'project' : 'source-type',
-          projectKey: undefined,
+          step: 'source-type',
+          projectKey: defaultProjectKey, // Reset to default project
           sourceType: undefined,
           sourceContent: undefined,
           customInstructions: undefined,

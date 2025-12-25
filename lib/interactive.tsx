@@ -170,18 +170,6 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
         }
 
         if (!key.ctrl && !key.meta && inputChar) {
-          if (state.step === 'project') {
-            const index = parseInt(inputChar) - 1;
-            if (index >= 0 && index < projects.length) {
-              const project = projects[index];
-              if (project) {
-                setState(prev => ({ ...prev, projectKey: project.key, step: 'source-type' }));
-                setInput('');
-                return;
-              }
-            }
-          }
-
           if (state.step === 'source-type' && ['1', '2', '3'].includes(inputChar)) {
             const sourceType = inputChar === '1' ? 'figma' : inputChar === '2' ? 'log' : 'prompt';
             setState(prev => ({ ...prev, sourceType, step: 'source-input' }));
@@ -426,8 +414,11 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
                   </Text>
                 ))}
                 {defaultProjectKey && (
-                  <Text dimColor>Press Enter to use default project</Text>
+                  <Text dimColor>Press Enter to use default project, or type number and press Enter</Text>
                 )}
+                <Box borderStyle="single" borderColor="gray" paddingX={1} marginTop={1}>
+                  <Text color="cyan">&gt; {input}</Text>
+                </Box>
               </Box>
             );
 

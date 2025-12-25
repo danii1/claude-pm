@@ -82,8 +82,8 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
           return;
         }
 
-        // Handle scrolling in preview mode
-        if (state.step === 'preview') {
+        // Handle scrolling in preview and edit-prompt modes
+        if (state.step === 'preview' || state.step === 'edit-prompt') {
           if (key.upArrow) {
             scrollViewRef.current?.scrollBy(-1);
             return;
@@ -522,6 +522,7 @@ export async function runInteractiveMode(): Promise<InteractiveModeHandle> {
                 </Box>
                 <Box flexDirection="column">
                   <Text bold>📝 Current Description:</Text>
+                  <Text dimColor>(Use arrow keys ↑↓ to scroll, PgUp/PgDn for fast scroll)</Text>
                   <Box
                     borderStyle="single"
                     borderColor="gray"

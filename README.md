@@ -1,16 +1,17 @@
 # claude-pm
 
-A CLI utility that automates creating Jira stories from multiple sources (Figma designs, error logs, or free-form prompts) and decomposing them into actionable tasks using Claude Code.
+Automate Jira story creation with AI. Transform Figma designs, error logs, or requirements into well-structured Jira stories in seconds. Let Claude Code research your codebase and designs to write detailed task descriptions that work for both humans and AI.
 
 ## Features
 
-- **Multiple Input Sources**: Create Jira stories from:
-  - **Figma designs**: Automatically analyze Figma designs and create detailed PM-style Jira stories
-  - **Error logs**: Convert bug reports and error logs into structured Jira issues
-  - **Free-form prompts**: Transform requirements or feature descriptions into well-defined stories
-- **Story Decomposition**: Break down stories into well-scoped subtasks (1-2 days each)
-- **Jira Integration**: Direct integration with Jira API for seamless task creation
-- **Claude Code Integration**: Leverages Claude Code for intelligent analysis and task generation
+- **Save Time on Task Creation**: Spend minutes instead of hours writing detailed Jira stories
+- **AI-Powered Analysis**: Let Claude Code research your codebase and designs to understand context
+- **Multiple Input Sources**: Create stories from:
+  - **Figma designs**: Analyze designs and extract detailed specifications
+  - **Error logs**: Convert bug reports and stack traces into structured issues
+  - **Free-form prompts**: Transform requirements into well-defined stories
+- **Quality Descriptions**: Generate task descriptions optimized for both human developers and AI assistants
+- **Direct Jira Integration**: Seamlessly create and link issues without leaving your terminal
 
 ## Prerequisites
 
@@ -265,10 +266,6 @@ bun --hot index.ts
 - The Claude session may have failed to create the Jira story
 - Check the output for errors
 - Verify your Jira credentials and permissions
-
-## License
-
-MIT
 
 ---
 

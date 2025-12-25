@@ -1,13 +1,16 @@
 # claude-pm
 
-A CLI utility that automates creating Jira stories from Figma designs and decomposing them into actionable tasks using Claude Code.
+A CLI utility that automates creating Jira stories from multiple sources (Figma designs, error logs, or free-form prompts) and decomposing them into actionable tasks using Claude Code.
 
 ## Features
 
-- **Figma to Jira**: Automatically analyze Figma designs and create detailed PM-style Jira stories
+- **Multiple Input Sources**: Create Jira stories from:
+  - **Figma designs**: Automatically analyze Figma designs and create detailed PM-style Jira stories
+  - **Error logs**: Convert bug reports and error logs into structured Jira issues
+  - **Free-form prompts**: Transform requirements or feature descriptions into well-defined stories
 - **Story Decomposition**: Break down stories into well-scoped subtasks (1-2 days each)
 - **Jira Integration**: Direct integration with Jira API for seamless task creation
-- **Claude Code Integration**: Leverages Claude Code's Figma MCP for design analysis
+- **Claude Code Integration**: Leverages Claude Code for intelligent analysis and task generation
 
 ## Prerequisites
 
@@ -193,14 +196,17 @@ claude-pm --prompt "Implement OAuth login" --style technical --decompose
 
 ## How It Works
 
-1. **Figma Analysis**: Claude Code analyzes the Figma design using the Figma MCP integration
+1. **Input Analysis**: Claude Code analyzes your input:
+   - **Figma designs**: Uses the Figma MCP integration to extract design specifications
+   - **Error logs**: Parses error messages and stack traces to identify root causes
+   - **Free-form prompts**: Interprets requirements and feature descriptions
 2. **Story Creation**: Creates a comprehensive Jira story with:
    - User story format
    - Acceptance criteria
    - Technical considerations
-   - Design notes
+   - Design notes (for Figma) or reproduction steps (for bugs)
 3. **Epic Linking** (optional): Links the story to the specified epic for organization
-4. **Task Decomposition**: Breaks down the story into subtasks that are:
+4. **Task Decomposition** (optional): Breaks down the story into subtasks that are:
    - Focused on single responsibilities
    - Completable within 1-2 days
    - Properly linked to the parent story

@@ -47,7 +47,7 @@ claude-pm init
 This will:
 - Create a `.claude-pm` directory in your current project
 - Copy the configuration template to `.claude-pm/.env`
-- Automatically migrate JIRA credentials from `.claude-intern/.env` if present
+- Automatically migrate configuration from `.claude-intern/.env` if present (JIRA credentials and Claude CLI path)
 - Update your `.gitignore` to exclude `.claude-pm/.env` (to prevent leaking secrets)
 
 ### Edit Configuration

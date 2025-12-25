@@ -44,6 +44,7 @@ export async function initializeProject(): Promise<void> {
   let jiraBaseUrl = '';
   let jiraEmail = '';
   let jiraApiToken = '';
+  let claudeCliPath = '';
 
   try {
     const claudeInternEnvFile = Bun.file(claudeInternEnvPath);
@@ -51,7 +52,7 @@ export async function initializeProject(): Promise<void> {
       console.log('📋 Found existing .claude-intern configuration');
       const claudeInternEnv = await claudeInternEnvFile.text();
 
-      // Extract JIRA_* values
+      // Extract JIRA_* and CLAUDE_CLI_PATH values
       const lines = claudeInternEnv.split('\n');
       for (const line of lines) {
         const trimmed = line.trim();
@@ -62,12 +63,14 @@ export async function initializeProject(): Promise<void> {
             jiraEmail = trimmed.split('=', 2)[1]?.trim() || '';
           } else if (trimmed.startsWith('JIRA_API_TOKEN=')) {
             jiraApiToken = trimmed.split('=', 2)[1]?.trim() || '';
+          } else if (trimmed.startsWith('CLAUDE_CLI_PATH=')) {
+            claudeCliPath = trimmed.split('=', 2)[1]?.trim() || '';
           }
         }
       }
 
-      if (jiraBaseUrl || jiraEmail || jiraApiToken) {
-        console.log('✅ Migrating JIRA credentials from .claude-intern');
+      if (jiraBaseUrl || jiraEmail || jiraApiToken || claudeCliPath) {
+        console.log('✅ Migrating configuration from .claude-intern');
       }
     }
   } catch {
@@ -92,6 +95,12 @@ export async function initializeProject(): Promise<void> {
     envContent = envContent.replace(
       /JIRA_API_TOKEN=.*/,
       `JIRA_API_TOKEN=${jiraApiToken}`
+    );
+  }
+  if (claudeCliPath) {
+    envContent = envContent.replace(
+      /CLAUDE_CLI_PATH=.*/,
+      `CLAUDE_CLI_PATH=${claudeCliPath}`
     );
   }
 

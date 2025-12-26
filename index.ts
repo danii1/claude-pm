@@ -348,11 +348,11 @@ async function main() {
       }
 
       // Determine which project to use for fetching issue types
-      const projectKeyForIssueTypes = projectsData && projectsData.length > 0
-        ? projectsData[0]?.key
-        : configForInteractive.jira.defaultProjectKey;
+      // Use the default project key if available, otherwise fall back to first project
+      const projectKeyForIssueTypes = configForInteractive.jira.defaultProjectKey
+        || (projectsData && projectsData.length > 0 ? projectsData[0]?.key : undefined);
 
-      // Fetch issue types from Jira for the first project (or default)
+      // Fetch issue types from Jira for the default project (initial load)
       let issueTypeNames: string[] | undefined;
       try {
         const issueTypesData = await jiraClient.getIssueTypes(projectKeyForIssueTypes);
@@ -366,7 +366,11 @@ async function main() {
         interactiveHandle = await runInteractiveMode({
           projects: projectsData,
           defaultProjectKey: configForInteractive.jira.defaultProjectKey,
-          issueTypes: issueTypeNames
+          issueTypes: issueTypeNames,
+          fetchIssueTypes: async (projectKey: string) => {
+            const types = await jiraClient.getIssueTypes(projectKey);
+            return types.map(type => type.name);
+          }
         });
       } catch {
         console.log("\nBye!");

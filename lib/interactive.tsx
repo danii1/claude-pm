@@ -43,6 +43,7 @@ export interface InteractiveModeOptions {
   projects?: Array<{ key: string; name: string }>;
   defaultProjectKey?: string;
   issueTypes?: string[];
+  fetchIssueTypes?: (projectKey: string) => Promise<string[]>;
 }
 
 export async function runInteractiveMode(options?: InteractiveModeOptions): Promise<InteractiveModeHandle> {
@@ -66,7 +67,7 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
       : allProjects;
 
     // Use provided issue types or default fallback
-    const issueTypes = options?.issueTypes && options.issueTypes.length > 0
+    const defaultIssueTypes = options?.issueTypes && options.issueTypes.length > 0
       ? options.issueTypes
       : ['Story', 'Task', 'Bug', 'Epic'];
 
@@ -81,7 +82,19 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
         tasks: [],
       });
       const [input, setInput] = useState('');
+      const [issueTypes, setIssueTypes] = useState<string[]>(defaultIssueTypes);
+      const [isLoadingIssueTypes, setIsLoadingIssueTypes] = useState(false);
       const scrollViewRef = useRef<ScrollViewRef>(null);
+
+      // Cache for issue types per project
+      const issueTypesCache = useRef<Map<string, string[]>>(new Map());
+
+      // Initialize cache with default project's issue types if available
+      React.useEffect(() => {
+        if (defaultProjectKey && defaultIssueTypes.length > 0) {
+          issueTypesCache.current.set(defaultProjectKey, defaultIssueTypes);
+        }
+      }, []);
 
       // Expose setState to parent
       React.useEffect(() => {
@@ -89,6 +102,53 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
           setState(prev => ({ ...prev, ...updates }));
         };
       }, []);
+
+      // Fetch issue types when project changes
+      React.useEffect(() => {
+        const fetchTypesForProject = async () => {
+          if (!state.projectKey) {
+            return;
+          }
+
+          // Check if we have cached issue types for this project
+          const cached = issueTypesCache.current.get(state.projectKey);
+          if (cached && cached.length > 0) {
+            setIssueTypes(cached);
+            // Reset issue type to first in list if current is not available
+            if (!cached.includes(state.issueType)) {
+              setState(prev => ({ ...prev, issueType: cached[0] || 'Story' }));
+            }
+            return;
+          }
+
+          // No cache hit - fetch from API if fetcher is available
+          if (!options?.fetchIssueTypes) {
+            return;
+          }
+
+          setIsLoadingIssueTypes(true);
+          try {
+            const types = await options.fetchIssueTypes(state.projectKey);
+            if (types.length > 0) {
+              // Cache the fetched types
+              issueTypesCache.current.set(state.projectKey, types);
+              setIssueTypes(types);
+              // Reset issue type to first in list if current is not available
+              if (!types.includes(state.issueType)) {
+                setState(prev => ({ ...prev, issueType: types[0] || 'Story' }));
+              }
+            }
+          } catch {
+            // Silently fall back to default issue types on error
+            setIssueTypes(defaultIssueTypes);
+          } finally {
+            setIsLoadingIssueTypes(false);
+          }
+        };
+
+        fetchTypesForProject();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [state.projectKey, state.issueType]);
 
       useInput((inputChar, key) => {
         if (key.ctrl && inputChar === 'c') {

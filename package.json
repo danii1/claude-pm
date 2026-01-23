@@ -1,6 +1,6 @@
 {
   "name": "claude-pm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automate Jira story creation with AI. Transform Figma designs, error logs, or requirements into well-structured Jira stories using Claude Code.",
   "type": "module",
   "bin": {

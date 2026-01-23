@@ -113,14 +113,12 @@ Usage: claude-pm init
        claude-pm --log <text> [options]
        claude-pm --prompt <text> [options]
        claude-pm --interactive
-       claude-pm --web [--port <port>]
 
 Commands:
   init                 Initialize .claude-pm configuration in current directory
 
 Modes:
-  --interactive        Interactive mode - step-by-step task creation (Terminal UI)
-  --web                Start web interface server
+  --interactive        Interactive mode - step-by-step task creation (recommended)
 
 Source (one required for non-interactive mode):
   --figma <url>        Figma design node URL to analyze
@@ -128,7 +126,6 @@ Source (one required for non-interactive mode):
   --prompt <text>      Free-form text describing requirements or features
 
 Options:
-  --port <number>      Port for web server (default: 3000, only with --web)
   --epic, -e <key>     Jira epic key to link the story to (e.g., PROJ-100)
   --type, -t <type>    Jira issue type (default: "Story")
                        Common types: Story, Task, Bug, Epic
@@ -148,12 +145,8 @@ Environment variables (set in .env):
   JIRA_PROJECT_KEY    Your Jira project key (e.g., PROJ)
 
 Examples:
-  # Interactive mode (Terminal UI)
-  claude-pm --interactive            # Step-by-step interactive task creation
-
-  # Web interface
-  claude-pm --web                    # Start web interface on port 3000
-  claude-pm --web --port 8080        # Start web interface on custom port
+  # Interactive mode (recommended)
+  claude-pm --interactive            # Step-by-step task creation
 
   # Figma designs
   claude-pm --figma "https://www.figma.com/design/abc/file?node-id=123-456"
@@ -839,29 +832,5 @@ Please update the description based on the user's feedback. Keep the same title 
   }
 }
 
-// Check if we should start web server
-const args = Bun.argv.slice(2);
-if (args.includes("--web")) {
-  // Extract port if provided
-  const portIndex = args.indexOf("--port");
-  const port =
-    portIndex !== -1 && args[portIndex + 1]
-      ? parseInt(args[portIndex + 1]!, 10)
-      : 3000;
-
-  // Set port in environment
-  process.env.PORT = port.toString();
-
-  // Dynamically import and start the server
-  import("./server")
-    .then(() => {
-      // Server will start automatically when module is loaded
-    })
-    .catch((error) => {
-      console.error("Failed to start web server:", error);
-      process.exit(1);
-    });
-} else {
-  // Run CLI mode
-  main();
-}
+// Run CLI mode
+main();

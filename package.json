@@ -7,11 +7,9 @@
     "claude-pm": "./index.ts"
   },
   "scripts": {
-    "build": "bun run tsc --noEmit",
+    "build": "bun build index.ts --target=node --outdir=dist --format=esm --external=* && bun run tsc --noEmit",
     "install-global": "bun run build && bun link",
-    "uninstall-global": "bun unlink",
-    "web": "bun run server.ts",
-    "dev": "bun --hot server.ts"
+    "uninstall-global": "bun unlink"
   },
   "devDependencies": {
     "@types/bun": "latest"

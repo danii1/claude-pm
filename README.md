@@ -18,23 +18,21 @@ Automate Jira story creation with AI. Transform Figma designs, error logs, or re
 - [Bun](https://bun.sh) runtime installed
 - [Claude Code CLI](https://claude.com/code) installed and configured
 - Jira account with API access
-- Figma designs accessible via URL
+- **For Figma functionality**: [Figma MCP server](https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/) must be installed and configured in Claude Code
 
 ## Installation
 
-1. Clone the repository and install dependencies:
+No installation required! Use `npx` to run claude-pm directly:
+
+```bash
+npx claude-pm --help
+```
+
+For local development, clone the repository and install dependencies:
 
 ```bash
 bun install
 ```
-
-2. (Optional) Install globally to use from any directory:
-
-```bash
-bun run install-global
-```
-
-After global installation, you can use `claude-pm` command from anywhere, including the web interface with `claude-pm --web`.
 
 ## Configuration
 
@@ -45,7 +43,7 @@ claude-pm uses per-project configuration stored in `.claude-pm/.env` in your pro
 Navigate to your project directory and run:
 
 ```bash
-claude-pm init
+npx claude-pm init
 ```
 
 This will:
@@ -85,15 +83,14 @@ The Claude CLI path is typically located at:
 
 ## Usage
 
-### Interactive Mode (Terminal UI)
+### Interactive Mode (Recommended)
 
-The interactive mode provides a step-by-step terminal UI for creating tasks:
+The interactive mode provides a step-by-step terminal UI for creating tasks. This is the recommended way to use claude-pm for all users:
 
 ```bash
-# If installed globally
-claude-pm --interactive
+npx claude-pm --interactive
 
-# Or from the project directory
+# Or for local development
 bun run index.ts --interactive
 ```
 
@@ -111,41 +108,16 @@ The interactive mode will guide you through:
 - ⌨️ Keyboard navigation (Enter to confirm, ESC to exit)
 - 👀 Visual preview of your configuration
 - 🎯 No need to remember command-line flags
+- ✨ Works great for both technical and non-technical users
 
-### Web Interface (Recommended for Non-Technical Users)
-
-Start the web server:
-
-```bash
-# If installed globally
-claude-pm --web
-
-# Or from the project directory
-bun run web
-```
-
-Then open your browser to http://localhost:3000
-
-**Custom port:**
-```bash
-claude-pm --web --port 8080
-```
-
-The web interface provides:
-- User-friendly form interface
-- Real-time progress updates
-- No command-line knowledge required
-- Visual feedback for story and subtask creation
-- Can be run from any directory when installed globally
-
-### CLI Usage (For Advanced Users)
+### CLI Usage (For Power Users)
 
 For power users who prefer command-line flags:
 
 ```bash
-claude-pm --figma <url> [options]
-claude-pm --log <text> [options]
-claude-pm --prompt <text> [options]
+npx claude-pm --figma <url> [options]
+npx claude-pm --log <text> [options]
+npx claude-pm --prompt <text> [options]
 ```
 
 #### Source Options (one required)
@@ -171,28 +143,30 @@ claude-pm --prompt <text> [options]
 
 **Figma designs:**
 
+> **Note**: Figma functionality requires the Figma MCP server to be installed and configured in Claude Code. See [Prerequisites](#prerequisites) for setup instructions.
+
 ```bash
-claude-pm --figma "https://www.figma.com/design/abc/file?node-id=123-456"
-claude-pm --figma "https://..." --epic PROJ-100
-claude-pm --figma "https://..." -c "Focus on accessibility"
-claude-pm --figma "https://..." --style technical --decompose
-claude-pm --figma "https://..." --type Task
+npx claude-pm --figma "https://www.figma.com/design/abc/file?node-id=123-456"
+npx claude-pm --figma "https://..." --epic PROJ-100
+npx claude-pm --figma "https://..." -c "Focus on accessibility"
+npx claude-pm --figma "https://..." --style technical --decompose
+npx claude-pm --figma "https://..." --type Task
 ```
 
 **Error logs:**
 
 ```bash
-claude-pm --log "Error: Cannot read property 'id' of undefined at line 42"
-claude-pm --log "$(cat error.log)" --epic PROJ-200 --type Bug
-claude-pm --log "Stack trace..." --style technical --model opus
+npx claude-pm --log "Error: Cannot read property 'id' of undefined at line 42"
+npx claude-pm --log "$(cat error.log)" --epic PROJ-200 --type Bug
+npx claude-pm --log "Stack trace..." --style technical --model opus
 ```
 
 **Free-form prompts:**
 
 ```bash
-claude-pm --prompt "Add user profile settings page with theme preferences"
-claude-pm --prompt "$(cat requirements.txt)" --epic PROJ-300
-claude-pm --prompt "Implement OAuth login" --style technical --decompose
+npx claude-pm --prompt "Add user profile settings page with theme preferences"
+npx claude-pm --prompt "$(cat requirements.txt)" --epic PROJ-300
+npx claude-pm --prompt "Implement OAuth login" --style technical --decompose
 ```
 
 ## How It Works
@@ -217,7 +191,6 @@ claude-pm --prompt "Implement OAuth login" --style technical --decompose
 ```
 claude-pm/
 ├── index.ts              # Main CLI entry point
-├── server.ts             # Web server with Bun.serve()
 ├── lib/
 │   ├── config.ts        # Configuration management
 │   ├── jira.ts          # Jira API integration
@@ -236,9 +209,9 @@ This project uses Bun as the runtime and package manager. See [CLAUDE.md](./CLAU
 **Available scripts:**
 
 ```bash
-bun run web          # Start web server
-bun run dev          # Start web server with hot reload
-bun run build        # Type check the project
+bun run build              # Build and type check the project
+bun run install-global     # Install globally for development
+bun run uninstall-global   # Uninstall global installation
 ```
 
 **Type checking:**
@@ -247,10 +220,10 @@ bun run build        # Type check the project
 bun run tsc --noEmit
 ```
 
-**CLI with hot reload:**
+**Run CLI:**
 
 ```bash
-bun --hot index.ts
+bun run index.ts --interactive
 ```
 
 ## Troubleshooting

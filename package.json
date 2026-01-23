@@ -1,16 +1,43 @@
 {
   "name": "claude-pm",
-  "module": "index.ts",
+  "version": "1.0.0",
+  "description": "Automate Jira story creation with AI. Transform Figma designs, error logs, or requirements into well-structured Jira stories using Claude Code.",
   "type": "module",
-  "private": true,
   "bin": {
-    "claude-pm": "./index.ts"
+    "claude-pm": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "lib",
+    "prompts",
+    ".env.example"
+  ],
   "scripts": {
     "build": "bun build index.ts --target=node --outdir=dist --format=esm --external=* && bun run tsc --noEmit",
     "install-global": "bun run build && bun link",
-    "uninstall-global": "bun unlink"
+    "uninstall-global": "bun unlink",
+    "prepublishOnly": "bun run build"
   },
+  "keywords": [
+    "jira",
+    "claude",
+    "ai",
+    "project-management",
+    "figma",
+    "automation",
+    "cli",
+    "task-management"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danii1/claude-pm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/danii1/claude-pm/issues"
+  },
+  "homepage": "https://github.com/danii1/claude-pm#readme",
+  "author": "Daniil",
+  "license": "ISC",
   "devDependencies": {
     "@types/bun": "latest"
   },

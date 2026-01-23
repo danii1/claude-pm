@@ -15,23 +15,26 @@ Automate Jira story creation with AI. Transform Figma designs, error logs, or re
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) runtime installed
+- **[Bun](https://bun.sh) runtime** - Required to run claude-pm (the tool is built with Bun)
 - [Claude Code CLI](https://claude.com/code) installed and configured
 - Jira account with API access
 - **For Figma functionality**: [Figma MCP server](https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/) must be installed and configured in Claude Code
 
 ## Installation
 
-No installation required! Use `npx` to run claude-pm directly:
+Install globally with Bun:
 
 ```bash
-npx claude-pm --help
+bun install -g claude-pm
 ```
 
-For local development, clone the repository and install dependencies:
+Or for local development:
 
 ```bash
+git clone https://github.com/danii1/claude-pm.git
+cd claude-pm
 bun install
+bun run install-global
 ```
 
 ## Configuration
@@ -43,7 +46,7 @@ claude-pm uses per-project configuration stored in `.claude-pm/.env` in your pro
 Navigate to your project directory and run:
 
 ```bash
-npx claude-pm init
+claude-pm init
 ```
 
 This will:
@@ -88,7 +91,7 @@ The Claude CLI path is typically located at:
 The interactive mode provides a step-by-step terminal UI for creating tasks. This is the recommended way to use claude-pm for all users:
 
 ```bash
-npx claude-pm --interactive
+claude-pm --interactive
 
 # Or for local development
 bun run index.ts --interactive
@@ -115,9 +118,9 @@ The interactive mode will guide you through:
 For power users who prefer command-line flags:
 
 ```bash
-npx claude-pm --figma <url> [options]
-npx claude-pm --log <text> [options]
-npx claude-pm --prompt <text> [options]
+claude-pm --figma <url> [options]
+claude-pm --log <text> [options]
+claude-pm --prompt <text> [options]
 ```
 
 #### Source Options (one required)
@@ -146,27 +149,27 @@ npx claude-pm --prompt <text> [options]
 > **Note**: Figma functionality requires the Figma MCP server to be installed and configured in Claude Code. See [Prerequisites](#prerequisites) for setup instructions.
 
 ```bash
-npx claude-pm --figma "https://www.figma.com/design/abc/file?node-id=123-456"
-npx claude-pm --figma "https://..." --epic PROJ-100
-npx claude-pm --figma "https://..." -c "Focus on accessibility"
-npx claude-pm --figma "https://..." --style technical --decompose
-npx claude-pm --figma "https://..." --type Task
+claude-pm --figma "https://www.figma.com/design/abc/file?node-id=123-456"
+claude-pm --figma "https://..." --epic PROJ-100
+claude-pm --figma "https://..." -c "Focus on accessibility"
+claude-pm --figma "https://..." --style technical --decompose
+claude-pm --figma "https://..." --type Task
 ```
 
 **Error logs:**
 
 ```bash
-npx claude-pm --log "Error: Cannot read property 'id' of undefined at line 42"
-npx claude-pm --log "$(cat error.log)" --epic PROJ-200 --type Bug
-npx claude-pm --log "Stack trace..." --style technical --model opus
+claude-pm --log "Error: Cannot read property 'id' of undefined at line 42"
+claude-pm --log "$(cat error.log)" --epic PROJ-200 --type Bug
+claude-pm --log "Stack trace..." --style technical --model opus
 ```
 
 **Free-form prompts:**
 
 ```bash
-npx claude-pm --prompt "Add user profile settings page with theme preferences"
-npx claude-pm --prompt "$(cat requirements.txt)" --epic PROJ-300
-npx claude-pm --prompt "Implement OAuth login" --style technical --decompose
+claude-pm --prompt "Add user profile settings page with theme preferences"
+claude-pm --prompt "$(cat requirements.txt)" --epic PROJ-300
+claude-pm --prompt "Implement OAuth login" --style technical --decompose
 ```
 
 ## How It Works

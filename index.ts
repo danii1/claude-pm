@@ -20,8 +20,12 @@ async function loadPrompt(
   filename: string,
   replacements: Record<string, string>
 ): Promise<string> {
+  // Detect if we're running from dist/ (bundled) or from source
+  const isBundle = import.meta.dir.endsWith("/dist") || import.meta.dir.endsWith("\\dist");
+  const baseDir = isBundle ? join(import.meta.dir, "..") : import.meta.dir;
+
   const promptPath = join(
-    import.meta.dir,
+    baseDir,
     "prompts",
     sourceType,
     style,

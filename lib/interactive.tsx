@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { render, Box, Text, useInput, useApp } from 'ink';
 import { ScrollView, type ScrollViewRef } from 'ink-scroll-view';
 import { MarkdownText } from './MarkdownText';
+import { PromptInput } from './PromptInput';
 
 interface Task {
   summary: string;
@@ -151,6 +152,8 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
       }, [state.projectKey, state.issueType]);
 
       useInput((inputChar, key) => {
+        const isTextEntryStep = ['project', 'source-input', 'custom', 'epic', 'edit-prompt'].includes(state.step);
+
         if (key.ctrl && inputChar === 'c') {
           exit();
           return;
@@ -235,11 +238,6 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
           return;
         }
 
-        if (key.backspace || key.delete) {
-          setInput(prev => prev.slice(0, -1));
-          return;
-        }
-
         if (!key.ctrl && !key.meta && inputChar) {
           if (state.step === 'source-type' && ['1', '2', '3'].includes(inputChar)) {
             const sourceType = inputChar === '1' ? 'figma' : inputChar === '2' ? 'log' : 'prompt';
@@ -306,7 +304,10 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
             }
           }
 
-          setInput(prev => prev + inputChar);
+          // Text input is handled by ink-text-input in editable steps.
+          if (!isTextEntryStep) {
+            return;
+          }
         }
       });
 
@@ -489,9 +490,7 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
                 {defaultProjectKey && (
                   <Text dimColor>Press Enter to use default project, or type number and press Enter</Text>
                 )}
-                <Box borderStyle="single" borderColor="gray" paddingX={1} marginTop={1}>
-                  <Text color="cyan">&gt; {input}</Text>
-                </Box>
+                <PromptInput value={input} onChange={setInput} marginTop={1} />
               </Box>
             );
 
@@ -514,9 +513,7 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
             return (
               <Box flexDirection="column" paddingY={1}>
                 <Text bold>{label}</Text>
-                <Box borderStyle="single" borderColor="gray" paddingX={1}>
-                  <Text color="cyan">&gt; {input}</Text>
-                </Box>
+                <PromptInput value={input} onChange={setInput} />
               </Box>
             );
           }
@@ -527,9 +524,7 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
                 <Text bold>Custom instructions (optional, press Enter to skip):</Text>
                 <Text dimColor>Additional requirements or focus areas</Text>
                 <Text dimColor>Example: "Focus on accessibility" or "Prioritize performance"</Text>
-                <Box borderStyle="single" borderColor="gray" paddingX={1}>
-                  <Text color="cyan">&gt; {input}</Text>
-                </Box>
+                <PromptInput value={input} onChange={setInput} />
               </Box>
             );
 
@@ -538,9 +533,7 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
               <Box flexDirection="column" paddingY={1}>
                 <Text bold>Epic key (optional, press Enter to skip):</Text>
                 <Text dimColor>Example: PROJ-123</Text>
-                <Box borderStyle="single" borderColor="gray" paddingX={1}>
-                  <Text color="cyan">&gt; {input}</Text>
-                </Box>
+                <PromptInput value={input} onChange={setInput} />
               </Box>
             );
 
@@ -696,9 +689,7 @@ export async function runInteractiveMode(options?: InteractiveModeOptions): Prom
                 <Box paddingTop={1} flexDirection="column">
                   <Text bold color="cyan">What would you like to change?</Text>
                   <Text dimColor>Example: "Add more details about error handling" or "Make it more concise"</Text>
-                  <Box borderStyle="single" borderColor="gray" paddingX={1} marginTop={1}>
-                    <Text color="cyan">&gt; {input}</Text>
-                  </Box>
+                  <PromptInput value={input} onChange={setInput} marginTop={1} />
                 </Box>
               </Box>
             );

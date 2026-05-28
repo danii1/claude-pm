@@ -1,5 +1,9 @@
 # claude-pm
 
+> **This repository is archived.** Development has moved to [DevIntern](https://devintern.com). Active development, new features, and ongoing support now live at [devintern.com](https://devintern.com). If you use claude-pm for commercial work, please move to [DevIntern for Product Managers](https://devintern.com/for/product-managers/) — it is the supported path forward.
+>
+> Thank you to everyone who tried claude-pm early. As a thank-you, use coupon code **`earlybird`** for **30% off** when you sign up at [devintern.com](https://devintern.com) — limited offer, may not last.
+
 Automate Jira story creation with AI. Transform Figma designs, error logs, or requirements into well-structured Jira stories in seconds. Let Claude Code research your codebase and designs to write detailed task descriptions that work for both humans and AI.
 
 ## Features
@@ -228,6 +232,10 @@ bun run tsc --noEmit
 ```bash
 bun run index.ts --interactive
 ```
+
+## License
+
+Licensed under the [ISC License](https://opensource.org/licenses/ISC). This repository is archived and no longer maintained. For ongoing development and support, see [DevIntern](https://devintern.com/for/product-managers/).
 
 ## Troubleshooting
 
